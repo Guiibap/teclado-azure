@@ -13,17 +13,17 @@
   // full = texto completo (bytes inteiros, listas): vai para a exportação, a tela mostra só msg
   const logEntries = [];
   function log(msg, cls, full = null) {
-    const time = new Date().toLocaleTimeString();
+    const time = I18N.fmtTime();
     logEntries.push({ time, msg, full });
     const line = document.createElement("div");
     if (cls) line.className = cls;
     line.textContent = `[${time}] ${msg}`;
-    if (full) line.title = "Texto completo vai na exportação do log";
+    if (full) line.title = t("log.fullTitle");
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
     // o que importa para quem não está olhando o registro sobe como aviso
     if (cls === "err") UI.toast(msg.split("\n")[0], "err");
-    else if (msg.startsWith("OK")) UI.toast(msg, "ok");
+    else if (cls === "ok") UI.toast(msg, "ok");
   }
   dev.log = (m, full) => log(m, m.startsWith("←") ? "rx" : m.startsWith("→") ? "tx" : undefined, full && `bytes: ${full}`);
 
@@ -65,7 +65,7 @@
         el.style.width = w + "px";
       }
       el.innerHTML = `<span class="key-name">${esc(k.name)}</span><span class="matrix-val"></span><span class="fn-val"></span>`;
-      el.title = `${k.name}\nmatriz=${k.matrix} LED=${k.led ?? "?"}`;
+      el.title = t("key.title.raw", { name: k.name, matrix: k.matrix, led: k.led ?? "?" });
       el.addEventListener("click", () => selectKey(el, k));
       canvas.appendChild(el);
     }
@@ -111,7 +111,7 @@
       // 2ª linha só quando a função difere da legenda impressa; 3ª linha = função com Fn
       mv.textContent = show && sameLabel(k.name, m.normal) ? "" : show ? short(m.normal) : "";
       fv.textContent = show && m.fn ? "Fn " + short(m.fn) : "";
-      el.title = `${k.name} — ${m.normal}${m.fn ? `\nCom Fn: ${m.fn}` : ""}`;
+      el.title = t(m.fn ? "key.title.fn" : "key.title", { name: k.name, normal: m.normal, fn: m.fn });
       el.classList.toggle("lit", show && m.normal !== "—");
       el.classList.toggle("has-fn", show && !!m.fn);
       const changed = orig && [m.normalOff, m.fnOff].some(o => o !== null && !sameEntry(entryAt(matrixData, o), entryAt(orig, o)));
@@ -122,7 +122,7 @@
   // ---------- dumps ----------
   function dumpHex(buf, title) {
     const bytes = new Uint8Array(buf);
-    let out = `${title} (${bytes.length} bytes)\n`;
+    let out = t("dump.bytes", { title, n: bytes.length }) + "\n";
     for (let i = 0; i < bytes.length; i += 16) {
       const row = [...bytes.slice(i, i + 16)].map(b => b.toString(16).padStart(2, "0")).join(" ");
       const asc = [...bytes.slice(i, i + 16)].map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : ".").join("");
@@ -134,56 +134,56 @@
   // ---------- conexão ----------
   async function connect() {
     try {
-      if (!("hid" in navigator)) { log("WebHID não suportado neste navegador (use um navegador baseado em Chromium: Chrome, Edge, Brave, Opera…).", "err"); return; }
+      if (!("hid" in navigator)) { log(t("log.nohid"), "err"); return; }
       let d = await dev.reconnectExisting();
       if (!d) d = await dev.connect();
-      setStatus(true, d.productName || "Conectado");
+      setStatus(true, d.productName || t("status.connected"));
       $("collections").textContent = JSON.stringify(dev.describeCollections(), null, 1);
       await loadMode();
     } catch (e) {
-      log("Falha ao conectar: " + e.message, "err");
+      log(t("log.connectFail", { msg: e.message }), "err");
     }
   }
 
   function setStatus(on, text) {
     $("status").className = "status " + (on ? "on" : "off");
     $("status").querySelector(".status-text").textContent = text;
-    $("btnConnect").lastChild.textContent = on ? "Reconectar" : "Conectar";
+    $("btnConnect").lastChild.textContent = t(on ? "header.reconnect" : "header.connect");
     $("btnConnect").classList.toggle("primary", !on);
   }
 
   function needDevice() {
-    if (!dev.connected) { log("Conecte o teclado primeiro.", "err"); return false; }
+    if (!dev.connected) { log(t("log.needDevice"), "err"); return false; }
     return true;
   }
 
   // ---------- ações do lab ----------
   async function act(fn) {
     if (!needDevice()) return;
-    try { await fn(); } catch (e) { log("Erro: " + e.message, "err"); }
+    try { await fn(); } catch (e) { log(t("log.error", { msg: e.message }), "err"); }
   }
 
   const actions = {
     btnConnect: connect,
     btnPassword: () => act(async () => {
       const r = await dev.getPassword();
-      if (!r) return log("GetPassword: sem resposta.", "err");
-      log(`GetPassword → status=0x${r.status.toString(16)} ok=${r.ok} senha=[${hex(r.pwd, ",")}]` +
-        (r.ok ? ` (esperado cfg PSD=2,0,0,0,1,ab → ${hex(new Uint8Array([2,0,0,0,1,0xab]), ",")})` : ""));
-      dumpHex(r.raw, "GetPassword resposta bruta");
+      if (!r) return log(t("log.noResponse", { cmd: "GetPassword" }), "err");
+      log(t("log.password", { status: r.status.toString(16), ok: r.ok, pwd: hex(r.pwd, ",") }) +
+        (r.ok ? " " + t("log.password.expected", { pwd: hex(new Uint8Array([2,0,0,0,1,0xab]), ",") }) : ""));
+      dumpHex(r.raw, t("dump.password"));
     }),
     btnProfile: () => act(async () => {
       const r = await dev.getProfile();
-      if (!r) return log("GetProfile: sem resposta.", "err");
-      dumpHex(r.raw, "GetProfile (cmd 0x83) resposta — dados do perfil a partir de 0x07");
-      log(`GetProfile — eco=0x${r.raw[0]?.toString(16)} (${r.echoOk ? "ok" : "esperado 0x83"}), 0x88 bytes de perfil em resp[7..].`,
+      if (!r) return log(t("log.noResponse", { cmd: "GetProfile" }), "err");
+      dumpHex(r.raw, t("dump.profile"));
+      log(t("log.profile", { echo: r.raw[0]?.toString(16), state: r.echoOk ? t("common.ok") : t("common.expected", { v: "0x83" }) }),
         r.echoOk ? undefined : "err");
     }),
     btnMatrix: () => act(async () => {
       const addr = labAddr();
       const r = await dev.getMatrix(addr);
-      if (!r) return log("GetMatrix: sem resposta.", "err");
-      dumpHex(r.raw, `GetMatrix (cmd 0x84, endereço 0x${addr.toString(16)}) resposta — matriz a partir de 0x07`);
+      if (!r) return log(t("log.noResponse", { cmd: "GetMatrix" }), "err");
+      dumpHex(r.raw, t("dump.matrix", { addr: addr.toString(16) }));
       appendDecoded(r.data);
       if (addr === modeAddr) setMatrix(r.data);
     }),
@@ -191,25 +191,25 @@
       const id = +$("rawId").value;
       const payload = parseHex($("rawPayload").value);
       await dev.sendFeature(id, payload);
-      log(`SendFeature ID=${id} enviado (${payload.length} bytes).`);
+      log(t("log.rawSent", { id, n: payload.length }));
     }),
     btnRawGet: () => act(async () => {
       const id = +$("rawRespId").value;
       const r = await dev.getCommand(id, 1);
-      if (r) dumpHex(r, `GetFeature ID=${id}`);
-      else log("GetFeature: sem resposta/erro.", "err");
+      if (r) dumpHex(r, t("dump.feature", { id }));
+      else log(t("log.rawNone"), "err");
     }),
     btnWrUndo: () => act(restoreBackup),
     ltRead: () => act(async () => {
       const data = await readProfileData();
-      log("Perfil lido.", undefined, showProfile(data));
+      log(t("log.profileRead"), undefined, showProfile(data));
     }),
     // paleta por efeito (lida em 88 B8, gravada por SetLedRgbTab 08 B8): linha n = efeito n, 7 cores RGB.
     // Confirmado ao vivo: bate com o Profile1.bk exportado (efeito 1 com branco no slot 0).
     ltColors: () => act(async () => {
       const r = await dev.readTable(0x88, 0xb8);
-      if (!r) return log("Tabela de cores (88 B8): sem resposta.", "err");
-      let out = `eco 0x${hx(r.raw[0])} (${r.echoOk ? "ok" : "esperado 88"}) · ${r.raw.length} bytes\n`;
+      if (!r) return log(t("log.colors.none"), "err");
+      let out = t("ltColors.head", { echo: hx(r.raw[0]), state: r.echoOk ? t("common.ok") : t("common.expected", { v: "88" }), n: r.raw.length }) + "\n";
       const used = r.data.findLastIndex(b => b !== 0) + 1;
       for (let i = 0; i < Math.max(used, 0x15); i += 0x15) {
         const row = [...r.data.slice(i, i + 0x15)];
@@ -218,7 +218,7 @@
         out += `${String(n).padStart(2)} ${(K652Lighting.LED_EFFECTS[n] ?? "—").padEnd(18)} ${cores}\n`;
       }
       $("ltOut").textContent = out;
-      log(`Tabela de cores lida (88 B8): ${used} bytes não-zero.`, r.echoOk ? undefined : "err", out);
+      log(t("log.colors.read", { n: used }), r.echoOk ? undefined : "err", out);
     }),
     ltPalTest: () => act(async () => {
       const cur = await readPalette();
@@ -229,43 +229,38 @@
       next.fill(0, PAL_MAC_FROM);
       next.set(cur.slice(0, PAL_MAC_FROM), PAL_MAC_BASE);
       const changed = [...next].filter((b, i) => b !== cur[i]).length;
-      const msg = `Gravar na tabela de cores (08 B8)?\n\n` +
-        `• 0x000–0x${(PAL_MAC_FROM - 1).toString(16)} (paleta do Windows): fica igual.\n` +
-        `• 0x${PAL_MAC_BASE.toString(16)}–0x${(PAL_MAC_BASE + PAL_MAC_FROM - 1).toString(16)}: cópia da paleta do Windows; o resto da 2ª metade volta a zero (${changed} bytes mudam).\n\n` +
-        `Backup da tabela de antes dos testes salvo neste navegador; “Restaurar paleta” desfaz.`;
-      log(`Prévia: cabeçalho 08 b8 00 40 00 00 00, Fixo do Mac em 0x${(PAL_MAC_BASE + 0x15).toString(16)}: ` +
-        hex(next.slice(PAL_MAC_BASE + 0x15, PAL_MAC_BASE + 0x2a)), "note");
-      if (!(await UI.ask(msg))) return log("Cancelado, nada foi gravado.");
-      autoBackup({ palette: cur }, "Antes de copiar a paleta do Windows para o Mac");
-      if (await writePalette(next, "cópia da paleta do Windows para o Mac"))
-        log("No modo Mac, Fixo + Fn+PgDn deve passar pelas mesmas cores do Windows (branco, azul, verde…).", "note");
+      const msg = t("dialog.palCopy", { a: (PAL_MAC_FROM - 1).toString(16), b: PAL_MAC_BASE.toString(16),
+        c: (PAL_MAC_BASE + PAL_MAC_FROM - 1).toString(16), n: changed });
+      log(t("log.palCopy.preview", { off: (PAL_MAC_BASE + 0x15).toString(16), hex: hex(next.slice(PAL_MAC_BASE + 0x15, PAL_MAC_BASE + 0x2a)) }), "note");
+      if (!(await UI.ask(msg))) return log(t("log.cancelled"));
+      autoBackup({ palette: cur }, { key: "history.palCopy" });
+      if (await writePalette(next, t("label.palCopy")))
+        log(t("log.palCopy.done"), "note");
     }),
     macRead: () => act(async () => {
       const pal = await readPalette();
       const fx = macEffect();
       setMacColors(pal.slice(macRow(fx), macRow(fx) + 0x15));
-      log(`Cores do efeito ${fx} (${effectName(fx)}) no modo Mac, 0x${macRow(fx).toString(16)}: ` +
-        hex(pal.slice(macRow(fx), macRow(fx) + 0x15)));
+      log(t("log.macRead", { fx, name: effectName(fx), off: macRow(fx).toString(16), hex: hex(pal.slice(macRow(fx), macRow(fx) + 0x15)) }));
     }),
     macWrite: () => act(async () => {
       const cur = await readPalette();
       if (!loadPalBackup()) savePalBackup(cur);
       const fx = macEffect(), off = macRow(fx), row = getMacColors();
       const old = cur.slice(off, off + 0x15);
-      if (row.every((b, i) => b === old[i])) return log("As cores escolhidas já são as gravadas. Nada a fazer.");
+      if (row.every((b, i) => b === old[i])) return log(t("log.macSame"));
       const next = cur.slice();
       next.set(row, off);
-      log(`Prévia (efeito ${fx}, 0x${off.toString(16)}–0x${(off + 0x14).toString(16)}):\n  antes  ${hex(old)}\n  depois ${hex(row)}`, "note");
-      if (!(await UI.ask(`Gravar as 7 cores do efeito ${fx} (${effectName(fx)}) no modo Mac?\n\n` +
-        `Só os 21 bytes em 0x${off.toString(16)}–0x${(off + 0x14).toString(16)} mudam; o resto da tabela fica igual.\n` +
-        `Para desfazer, use a aba Backup ou “Restaurar paleta”.`))) return log("Cancelado, nada foi gravado.");
-      autoBackup({ palette: cur }, `Antes de alterar as cores do efeito ${fx} (${effectName(fx)}) no Mac`);
-      if (await writePalette(next, `cores do efeito ${fx} no Mac`))
-        log("No modo Mac, nesse efeito, Fn+PgDn passa pelas 7 cores na ordem dos quadradinhos.", "note");
+      const range = { a: off.toString(16), b: (off + 0x14).toString(16) };
+      log(t("log.macWrite.preview", { fx, ...range, old: hex(old), new: hex(row) }), "note");
+      if (!(await UI.ask(t("dialog.macWrite", { fx, name: effectName(fx), ...range })))) return log(t("log.cancelled"));
+      autoBackup({ palette: cur }, { key: "history.macWrite", vars: { fx } });
+      if (await writePalette(next, t("label.macWrite", { fx })))
+        log(t("log.macWrite.done"), "note");
     }),
     bsRead: () => act(async () => {
       const cur = parseProfile(await readProfileData()).profiles.find(p => p.active);
-      if (!cur || cur.brightness === null) return log("Não achei o bloco ativo ou o efeito atual no perfil.", "err");
+      if (!cur || cur.brightness === null) return log(t("log.noActive"), "err");
       $("bsBright").value = cur.brightness;
       $("bsSpeed").value = cur.speed;
       if ($("fxSel").has(cur.effect)) $("fxSel").value = cur.effect;
@@ -274,58 +269,58 @@
     fxWrite: () => act(async () => {
       const data = await readProfileData();
       const n = data[0], blk = 8 + n * PROFILE_STRIDE, fx = parseInt($("fxSel").value, 10);
-      if (n > 1 || !(fx >= 0 && fx <= 20)) return log(`Perfil ou efeito inesperado (bloco ${n + 1}, efeito ${fx}). Nada foi gravado.`, "err");
-      if (data[blk + 5] === fx && data[blk + 4] === 0) return log(`O efeito já é ${effectName(fx)}. Nada a fazer.`);
+      if (n > 1 || !(fx >= 0 && fx <= 20)) return log(t("log.fx.unexpected", { block: n + 1, fx }), "err");
+      if (data[blk + 5] === fx && data[blk + 4] === 0) return log(t("log.fx.same", { name: effectName(fx) }));
       // [4] = 0: sai do modo personalizado (Fn+End), como o sub_40d240 faz para qualquer efeito pronto
       const want = data.slice(); want[blk + 5] = fx; want[blk + 4] = 0;
-      await writeProfile(data, want, `efeito ${effectName(data[blk + 5])} → ${effectName(fx)}, bloco ${n + 1}`,
-        { desc: `Antes de alterar o efeito de ${effectName(data[blk + 5])} para ${effectName(fx)}` });
+      await writeProfile(data, want, t("label.fx", { from: effectName(data[blk + 5]), to: effectName(fx), block: n + 1 }),
+        { desc: { key: "history.fx", vars: { fxFrom: data[blk + 5], fxTo: fx } } });
     }),
     bsWrite: () => act(async () => {
       const data = await readProfileData();
       const n = data[0], blk = 8 + n * PROFILE_STRIDE, fx = data[blk + 5];
-      if (n > 1 || fx < 1 || fx > 29) return log(`Perfil inesperado (bloco ${n + 1}, efeito ${fx}). Nada foi gravado.`, "err");
+      if (n > 1 || fx < 1 || fx > 29) return log(t("log.bs.unexpected", { block: n + 1, fx }), "err");
       const off = blk + 0x15 + 2 * fx; // byte B do efeito atual: brilho | velocidade << 4
       const b = clampBs($("bsBright").value) | (clampBs($("bsSpeed").value) << 4);
-      if (data[off] === b) return log("Brilho e velocidade já são esses. Nada a fazer.");
+      if (data[off] === b) return log(t("log.bs.same"));
       const want = data.slice(); want[off] = b;
-      await writeProfile(data, want, `brilho ${b & 0xf} e velocidade ${b >> 4} do efeito ${fx} (${effectName(fx)}), bloco ${n + 1}`,
-        { desc: `Antes de alterar brilho e velocidade do efeito ${fx} (${effectName(fx)})` });
+      await writeProfile(data, want, t("label.bs", { bright: b & 0xf, speed: b >> 4, fx, name: effectName(fx), block: n + 1 }),
+        { desc: { key: "history.bs", vars: { fx } } });
     }),
     bsUndo: () => act(async () => {
-      if (!bsBefore) return log("Nada para desfazer nesta sessão.", "err");
-      await writeProfile(await readProfileData(), bsBefore, "desfazer a última gravação do perfil",
-        { desc: "Antes de desfazer a última gravação do efeito" });
+      if (!bsBefore) return log(t("log.nothingUndo"), "err");
+      await writeProfile(await readProfileData(), bsBefore, t("label.undo"),
+        { desc: { key: "history.undo" } });
     }),
     bsRestore: () => act(async () => {
       const b = loadProfileBackup();
-      if (!b) return log("Não há backup do perfil neste navegador.", "err");
-      await writeProfile(await readProfileData(), b.data, `restaurar o perfil salvo em ${b.ts}`,
-        { desc: "Antes de restaurar o efeito original" });
+      if (!b) return log(t("log.noProfileBackup"), "err");
+      await writeProfile(await readProfileData(), b.data, t("label.profileRestore", { ts: fmtTs(b.ts) }),
+        { desc: { key: "history.profileRestore" } });
     }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
-      if (!b) return log("Não há backup da paleta neste navegador.", "err");
-      if (!(await UI.ask(`Restaurar a tabela de cores para a cópia salva em ${b.ts}?`, { confirm: "Restaurar", danger: true }))) return;
-      autoBackup(await readParts(["palette"]), "Antes de restaurar a paleta original");
-      await writePalette(b.data, "restauração da paleta");
+      if (!b) return log(t("log.noPalBackup"), "err");
+      if (!(await UI.ask(t("dialog.palRestore", { ts: fmtTs(b.ts) }), { confirm: t("common.restore"), danger: true }))) return;
+      autoBackup(await readParts(["palette"]), { key: "history.palRestore" });
+      await writePalette(b.data, t("label.palRestore"));
     }),
     ltSnap: () => act(async () => {
       profileSnap = await readProfileData();
-      log("Perfil guardado. Mude a iluminação pelo teclado, anote o que fez e clique em “Comparar”.", undefined, showProfile(profileSnap));
+      log(t("log.snap"), undefined, showProfile(profileSnap));
     }),
     ltDiff: () => act(async () => {
-      if (!profileSnap) return log("Clique em “Guardar para comparar” primeiro.", "err");
+      if (!profileSnap) return log(t("log.snapFirst"), "err");
       const now = await readProfileData();
       const diffs = [];
       for (let i = 0; i < Math.max(now.length, profileSnap.length); i++)
         if (now[i] !== profileSnap[i]) diffs.push(i);
       const lines = diffs.map(i => `0x${i.toString(16).padStart(3, "0")}  ${hx(profileSnap[i])} → ${hx(now[i])}   ${describeOffset(i)}`);
       const note = $("ltNote").value.trim();
-      const head = `Diferenças em relação ao guardado (${diffs.length} bytes):\n` + (lines.join("\n") || "nenhuma") + "\n\n";
+      const head = t("diff.head", { n: diffs.length }) + "\n" + (lines.join("\n") || t("diff.none")) + "\n\n";
       const decoded = showProfile(now, head);
-      log(`Comparação${note ? ` [${note}]` : ""}: ${diffs.length} bytes mudaram.`, "note", decoded);
-      if (!note) log("Dica: escreva no campo “O que você fez” antes de comparar, para a anotação ir junto no log.");
+      log(t("log.diff", { note: note ? ` [${note}]` : "", n: diffs.length }), "note", decoded);
+      if (!note) log(t("log.diffTip"));
       // a próxima comparação parte daqui
       profileSnap = now;
       $("ltNote").value = "";
@@ -337,14 +332,14 @@
 
   // ---------- modo (tabela de teclas) ----------
   // Endereços da matriz: D4 = modo Windows, D8 = modo Mac, DC = macros (só leitura no lab).
-  const MODES = { 0xd8: "Mac", 0xd4: "Windows" };
+  const MODES = { 0xd8: "Mac", 0xd4: "Windows" }; // nomes de plataforma: não se traduzem
   let modeAddr = 0xd8;
   try { if (MODES[+localStorage.getItem("k652.mode")]) modeAddr = +localStorage.getItem("k652.mode"); } catch {}
   let matrixData = null; // 0x400 bytes da matriz do modo selecionado (última leitura)
 
   function labAddr() {
     const a = parseInt($("mxAddr").value, 16);
-    if (!(a >= 0 && a <= 0xff)) throw new Error("Endereço da matriz deve ser 00–FF.");
+    if (!(a >= 0 && a <= 0xff)) throw new Error(t("error.mxAddr"));
     return a;
   }
 
@@ -360,10 +355,10 @@
 
   async function loadMode() {
     const data = await readMatrixChecked(modeAddr);
-    if (!loadBackup(modeAddr)) { saveBackup(data, modeAddr); log(`Cópia original do modo ${MODES[modeAddr]} salva neste navegador.`); }
+    if (!loadBackup(modeAddr)) { saveBackup(data, modeAddr); log(t("log.origSaved", { mode: MODES[modeAddr] })); }
     setMatrix(data);
     showBackupInfo();
-    log(`Modo ${MODES[modeAddr]} carregado (matriz 0x${modeAddr.toString(16)}).`);
+    log(t("log.modeLoaded", { mode: MODES[modeAddr], addr: modeAddr.toString(16) }));
   }
 
   function setMatrix(data) {
@@ -391,42 +386,42 @@
   }
 
   function saveBackup(data, addr) {
-    const b = { ts: new Date().toLocaleString(), addr, hex: hex(data, "") };
-    try { localStorage.setItem(backupKey(addr), JSON.stringify(b)); } catch (e) { log("Não consegui salvar o backup no navegador: " + e.message, "err"); }
+    const b = { ts: new Date().toISOString(), addr, hex: hex(data, "") };
+    try { localStorage.setItem(backupKey(addr), JSON.stringify(b)); } catch (e) { log(t("log.saveFail", { msg: e.message }), "err"); }
     return b;
   }
 
   function showBackupInfo() {
     const b = loadBackup(modeAddr);
     $("wrBackupInfo").textContent = b
-      ? `Cópia original do modo ${MODES[modeAddr]} salva em ${b.ts}, neste navegador.`
-      : `Ainda sem cópia original do modo ${MODES[modeAddr]} — ela é salva na 1ª leitura.`;
+      ? t("factory.saved", { mode: MODES[modeAddr], ts: fmtTs(b.ts) })
+      : t("factory.notYet", { mode: MODES[modeAddr] });
   }
 
   async function readMatrixChecked(addr) {
     const r = await dev.getMatrix(addr);
-    if (!r) throw new Error("GetMatrix sem resposta.");
+    if (!r) throw new Error(t("error.matrixNone"));
     // trava de segurança: só escrevemos em cima de uma leitura que parece válida
     const filled = parseMatrix(r.data).keys.filter(k => k.normal !== "—").length;
     if (r.raw[0] !== 0x84 || r.raw[1] !== addr || r.data.length !== 0x400 || filled < 30)
-      throw new Error(`Leitura suspeita (eco ${hex(r.raw.slice(0, 2))}, ${r.data.length} bytes, ${filled} teclas). Nada foi gravado.`);
+      throw new Error(t("error.suspect", { echo: hex(r.raw.slice(0, 2)), n: r.data.length, keys: filled }));
     return r.data;
   }
 
   // SetKeyMatrix (sub_4458b0) com a matriz inteira, depois relê e compara byte a byte
   async function writeAndVerify(data, label, addr) {
-    log(`Gravando: ${label} (modo ${MODES[addr] ?? "?"}, matriz 0x${addr.toString(16)})…`, "tx");
-    if (!(await dev.setKeyMatrix(data, addr))) throw new Error("SetKeyMatrix falhou nas 3 tentativas.");
+    log(t("log.writing", { label, mode: MODES[addr] ?? "?", addr: addr.toString(16) }), "tx");
+    if (!(await dev.setKeyMatrix(data, addr))) throw new Error(t("error.setMatrix"));
     await sleep(300);
     const back = (await dev.getMatrix(addr))?.data;
-    if (!back) throw new Error("Gravou, mas a releitura não respondeu. Leia o modo de novo.");
+    if (!back) throw new Error(t("error.reread"));
     if (addr === modeAddr) setMatrix(back);
     const bad = [...data].map((b, i) => b !== back[i] ? i : -1).filter(i => i >= 0);
     if (bad.length) {
-      log(`Releitura difere em ${bad.length} bytes (1º offset 0x${bad[0].toString(16)}).`, "err");
+      log(t("log.rereadDiff", { n: bad.length, off: bad[0].toString(16) }), "err");
       return false;
     }
-    log("OK: gravado e conferido. Aperte a tecla para testar.");
+    log(t("log.okWritten"), "ok");
     return true;
   }
 
@@ -435,11 +430,10 @@
 
   async function restoreBackup() {
     const b = loadBackup(modeAddr);
-    if (!b || b.data.length !== 0x400) return log(`Não há cópia original do modo ${MODES[modeAddr]} neste navegador.`, "err");
-    if (!(await UI.ask(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?\n` +
-      "Todas as teclas desse modo voltam ao que eram na primeira leitura.", { confirm: "Restaurar", danger: true }))) return;
-    autoBackup(await readParts([matrixPart(modeAddr)]), `Antes de restaurar as teclas do modo ${MODES[modeAddr]} ao original`);
-    await writeAndVerify(b.data, `restauração completa do modo ${MODES[modeAddr]}`, modeAddr);
+    if (!b || b.data.length !== 0x400) return log(t("log.noOrig", { mode: MODES[modeAddr] }), "err");
+    if (!(await UI.ask(t("dialog.modeRestore", { mode: MODES[modeAddr], ts: fmtTs(b.ts) }), { confirm: t("common.restore"), danger: true }))) return;
+    autoBackup(await readParts([matrixPart(modeAddr)]), { key: "history.modeRestore", vars: { addr: modeAddr } });
+    await writeAndVerify(b.data, t("label.modeRestore", { mode: MODES[modeAddr] }), modeAddr);
   }
 
   // ---------- iluminação (leitura) ----------
@@ -471,7 +465,7 @@
   async function readPalette() {
     const r = await dev.readTable(0x88, 0xb8);
     if (!r || !r.echoOk || r.data.length !== 0x400 || !r.data.slice(0x15, 0x2a).some(b => b))
-      throw new Error("Leitura da tabela de cores suspeita. Nada foi gravado.");
+      throw new Error(t("error.palSuspect"));
     return r.data;
   }
   function loadPalBackup() {
@@ -479,24 +473,24 @@
     catch { return null; }
   }
   function savePalBackup(data) {
-    try { localStorage.setItem(PAL_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...data] })); }
-    catch (e) { throw new Error("Não consegui salvar o backup da paleta: " + e.message); }
-    log("Backup da tabela de cores salvo neste navegador.");
+    try { localStorage.setItem(PAL_BACKUP, JSON.stringify({ ts: new Date().toISOString(), data: [...data] })); }
+    catch (e) { throw new Error(t("error.palSave", { msg: e.message })); }
+    log(t("log.palBackup"));
   }
   async function writePalette(data, label) {
-    log(`Gravando: ${label} (08 B8)…`, "tx");
-    if (!(await dev.setLedRgbTab(data))) throw new Error("SetLedRgbTab falhou nas 3 tentativas.");
+    log(t("log.writingPal", { label }), "tx");
+    if (!(await dev.setLedRgbTab(data))) throw new Error(t("error.setPal"));
     await sleep(300);
     const back = await readPalette();
     const bad = [...data].map((b, i) => b !== back[i] ? i : -1).filter(i => i >= 0);
-    if (bad.length) { log(`Releitura difere em ${bad.length} bytes (1º offset 0x${bad[0].toString(16)}).`, "err"); return false; }
-    log("OK: paleta gravada e conferida.");
+    if (bad.length) { log(t("log.rereadDiff", { n: bad.length, off: bad[0].toString(16) }), "err"); return false; }
+    log(t("log.okPal"), "ok");
     return true;
   }
 
   async function readProfileData() {
     const r = await dev.getProfile();
-    if (!r || !r.echoOk) throw new Error("GetProfile sem resposta válida.");
+    if (!r || !r.echoOk) throw new Error(t("error.profileNone"));
     return r.raw.slice(7); // perfil inteiro (8 globais + 2 × 0x7B), não só os 0x88 do app original
   }
 
@@ -515,49 +509,47 @@
   const PROFILE_LEN = 8 + 2 * PROFILE_STRIDE; // 0xFE
   function packProfile(data) {
     const out = data.slice(0, PROFILE_LEN);
-    if (out.length !== PROFILE_LEN) throw new Error(`Perfil lido com ${out.length} bytes, esperado ${PROFILE_LEN}. Nada foi gravado.`);
+    if (out.length !== PROFILE_LEN) throw new Error(t("error.profileLen", { n: out.length, want: PROFILE_LEN }));
     const bad = [6, ...[0, 1].map(n => 8 + n * PROFILE_STRIDE + 0x79)].filter(i => out[i] !== 0x5a || out[i + 1] !== 0xa5);
-    if (bad.length) throw new Error(`Faltam marcadores 5a a5 em ${bad.map(i => "0x" + i.toString(16)).join(", ")}. Nada foi gravado.`);
+    if (bad.length) throw new Error(t("error.markers", { at: bad.map(i => "0x" + i.toString(16)).join(", ") }));
     return out;
   }
   function showBs(p) {
-    $("bsInfo").textContent = `Bloco ativo, efeito ${p.effect} (${effectName(p.effect)}): brilho ${p.brightness}, velocidade ${p.speed}.`;
+    $("bsInfo").textContent = t("bs.info", { fx: p.effect, name: effectName(p.effect), bright: p.brightness, speed: p.speed });
   }
   // desc: descrição do backup automático (null = quem chamou já fez o backup); confirmed: pula o diálogo
-  async function writeProfile(before, want, label, { desc = `Antes de alterar ${label}`, confirmed = false } = {}) {
+  async function writeProfile(before, want, label, { desc = { key: "history.profile", vars: { label } }, confirmed = false } = {}) {
     try { if (!localStorage.getItem(PROFILE_BACKUP))
-      localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...before] })); } catch {}
+      localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toISOString(), data: [...before] })); } catch {}
     const changes = [...want].map((b, i) => b !== before[i] ? i : -1).filter(i => i >= 0);
     const pkt = packProfile(want);
-    log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, ${pkt.length} bytes (formato da leitura):\n` +
+    log(t("log.profilePreview", { n: pkt.length }) + "\n" +
       Array.from({ length: Math.ceil(pkt.length / 16) }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
-      "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
-    if (!confirmed && !(await UI.ask(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
-      `o devolve (as tentativas anteriores, no formato curto do app do Windows, voltaram a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
-      `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`, { danger: true })))
-      return log("Cancelado, nada foi gravado.");
+      "\n" + t("log.profileChanges") + " " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
+    if (!confirmed && !(await UI.ask(t("dialog.profile", { label }), { danger: true })))
+      return log(t("log.cancelled"));
     if (desc) autoBackup({ profile: before }, desc);
-    log(`Gravando perfil: ${label} (03 B6)…`, "tx");
-    if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
+    log(t("log.writingProfile", { label }), "tx");
+    if (!(await dev.setProfile(pkt))) throw new Error(t("error.setProfile"));
     await sleep(300);
     const back = await readProfileData();
     const diff = [...back.slice(0, PROFILE_LEN)].map((b, i) => b !== want[i] ? i : -1).filter(i => i >= 0);
     if (!diff.length) bsBefore = before; // só vira ponto de desfazer se a gravação bateu
-    if (!diff.length) log("OK: perfil gravado e conferido, só mudou o que devia.");
-    else log(`Releitura difere do esperado em ${diff.length} bytes:\n` + diff.map(i =>
-      `  0x${i.toString(16).padStart(3, "0")}  esperado ${hx(want[i])}, veio ${hx(back[i])}   ${describeOffset(i)}`).join("\n") +
-      "\nCopie este log para mim. “Desfazer” tenta voltar ao anterior.", "err");
+    if (!diff.length) log(t("log.okProfile"), "ok");
+    else log(t("log.profileDiff", { n: diff.length }) + "\n" + diff.map(i =>
+      "  " + t("log.profileDiff.row", { off: i.toString(16).padStart(3, "0"), want: hx(want[i]), got: hx(back[i]), what: describeOffset(i) })).join("\n") +
+      "\n" + t("log.profileDiff.tip"), "err");
     const p = parseProfile(back).profiles.find(q => q.active);
     if (p) showBs(p);
   }
 
   function showProfile(data, prefix = "") {
     const { global, profiles } = parseProfile(data);
-    let out = prefix + `Globais: ${global.map(hx).join(" ")} · bloco ativo: ${global[0] + 1}\n`;
+    let out = prefix + t("profile.globals", { g: global.map(hx).join(" "), n: global[0] + 1 }) + "\n";
     profiles.forEach((p, n) => {
-      out += `\nBloco ${n + 1}${p.active ? " (ATIVO)" : ""}: efeito ${p.effect} (${effectName(p.effect)})` +
-        (p.custom ? " · modo personalizado" : "") + ` · grupo ${p.group}` + (p.marker ? "" : " · SEM marcador 5a a5") +
-        (p.brightness !== null ? `\n  parâmetros do efeito atual: cor ${p.color} · direção ${p.direction} · brilho ${p.brightness} · velocidade ${p.speed}` : "") + "\n";
+      out += "\n" + t("profile.block", { n: n + 1, active: p.active ? t("profile.active") : "", fx: p.effect, name: effectName(p.effect) }) +
+        (p.custom ? t("profile.custom") : "") + t("profile.group", { g: p.group }) + (p.marker ? "" : t("profile.noMarker")) +
+        (p.brightness !== null ? "\n  " + t("profile.params", { color: p.color, dir: p.direction, bright: p.brightness, speed: p.speed }) : "") + "\n";
       for (let i = 0; i < p.raw.length; i += 16)
         out += `  ${i.toString(16).padStart(2, "0")}  ${[...p.raw.slice(i, i + 16)].map(hx).join(" ")}\n`;
     });
@@ -570,9 +562,19 @@
   // Fica no localStorage deste navegador, o mais recente primeiro. As cópias originais (1ª leitura) aparecem no fim.
   const HISTORY = "k652.history";
   const HISTORY_MAX = 60;
-  const PARTS = { d8: "Teclas do Mac", d4: "Teclas do Windows", palette: "Cores", profile: "Efeito e brilho" };
+  const PARTS = { d8: t("part.d8"), d4: t("part.d4"), palette: t("part.palette"), profile: t("part.profile") };
   const matrixPart = addr => addr.toString(16); // "d8" | "d4"
-  const fmtTs = ts => { const d = new Date(ts); return isNaN(d) ? ts : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }); };
+  const fmtTs = ts => I18N.fmtDate(ts); // aceita ISO e o texto já formatado das cópias antigas (vira o próprio texto)
+  // descrição do backup: texto livre (nome digitado) ou { key, vars } que segue o idioma na hora de mostrar
+  function expandVars(v = {}) {
+    const o = { ...v };
+    for (const k of Object.keys(v)) {
+      if (k.startsWith("fx")) o[k + "Name"] = effectName(v[k]);
+      if (k === "addr") o.mode = MODES[v[k]] ?? "?";
+    }
+    return o;
+  }
+  const descText = b => b.descKey ? t(b.descKey, expandVars(b.descVars)) : b.desc;
 
   function loadHistory() {
     try { const h = JSON.parse(localStorage.getItem(HISTORY)); return Array.isArray(h) ? h : []; } catch { return []; }
@@ -583,17 +585,18 @@
       try { localStorage.setItem(HISTORY, JSON.stringify(h)); return true; }
       catch (e) {
         const i = h.findLastIndex(b => b.auto);
-        if (i < 0) { log("Não consegui salvar o backup no navegador: " + e.message, "err"); return false; }
+        if (i < 0) { log(t("log.saveFail", { msg: e.message }), "err"); return false; }
         h.splice(i, 1);
       }
     }
   }
   function addBackup(parts, desc, auto) {
     const h = loadHistory();
-    h.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), auto, desc,
+    const text = typeof desc === "string" ? { desc } : { descKey: desc.key, descVars: desc.vars };
+    h.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), auto, ...text,
       parts: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, hex(v, "")])) });
     while (h.length > HISTORY_MAX) { const i = h.findLastIndex(b => b.auto); h.splice(i < 0 ? h.length - 1 : i, 1); }
-    if (saveHistory(h)) log(`Backup salvo: ${desc}.`);
+    if (saveHistory(h)) log(t("log.backupSaved", { desc: descText(h[0]) }));
     renderHistory();
   }
   const autoBackup = (parts, desc) => addBackup(parts, desc, true);
@@ -605,50 +608,50 @@
       if (k === "palette") out[k] = strict ? await readPalette() : (await dev.readTable(0x88, 0xb8))?.data;
       else if (k === "profile") out[k] = await readProfileData();
       else out[k] = strict ? await readMatrixChecked(parseInt(k, 16)) : (await dev.getMatrix(parseInt(k, 16)))?.data;
-      if (!out[k]?.length) throw new Error(`Não consegui ler ${PARTS[k]} do teclado. Nada foi gravado.`);
+      if (!out[k]?.length) throw new Error(t("error.readPart", { part: PARTS[k] }));
     }
     return out;
   }
 
   function originals() {
     return [
-      ...Object.keys(MODES).map(a => [loadBackup(+a), matrixPart(+a), `Teclas do modo ${MODES[a]} na 1ª leitura`]),
-      [loadPalBackup(), "palette", "Cores antes da 1ª gravação"],
-      [loadProfileBackup(), "profile", "Efeito e brilho antes da 1ª gravação"],
+      ...Object.keys(MODES).map(a => [loadBackup(+a), matrixPart(+a), t("orig.keys", { mode: MODES[a] })]),
+      [loadPalBackup(), "palette", t("orig.palette")],
+      [loadProfileBackup(), "profile", t("orig.profile")],
     ].filter(([b]) => b?.data?.length).map(([b, k, desc]) => ({ id: "orig-" + k, ts: b.ts, orig: true, desc, parts: { [k]: hex(b.data, "") } }));
   }
 
   function renderHistory() {
     const h = loadHistory(), orig = originals();
     const item = b => `<li class="bk-item"><div class="bk-main">` +
-      `<div class="bk-top"><span class="bk-badge">${b.orig ? "Original" : b.auto ? "Automático" : "Manual"}</span><time>${esc(fmtTs(b.ts))}</time></div>` +
-      `<div class="bk-desc">${esc(b.desc)}</div><div class="bk-parts">${Object.keys(b.parts).map(k => PARTS[k]).join(" · ")}</div></div>` +
-      `<div class="bk-actions"><button type="button" class="btn sm" data-restore="${b.id}">${icon("archive-restore", 14)}Restaurar</button>` +
-      (b.orig ? "" : `<button type="button" class="btn ghost sm" data-del="${b.id}" aria-label="Excluir backup" title="Excluir">${icon("trash-2", 14)}</button>`) +
+      `<div class="bk-top"><span class="bk-badge">${esc(t(b.orig ? "bk.original" : b.auto ? "bk.auto" : "bk.manual"))}</span><time>${esc(fmtTs(b.ts))}</time></div>` +
+      `<div class="bk-desc">${esc(descText(b))}</div><div class="bk-parts">${Object.keys(b.parts).map(k => PARTS[k]).join(" · ")}</div></div>` +
+      `<div class="bk-actions"><button type="button" class="btn sm" data-restore="${b.id}">${icon("archive-restore", 14)}${esc(t("common.restore"))}</button>` +
+      (b.orig ? "" : `<button type="button" class="btn ghost sm" data-del="${b.id}" aria-label="${esc(t("bk.delete.aria"))}" title="${esc(t("bk.delete"))}">${icon("trash-2", 14)}</button>`) +
       `</div></li>`;
     $("bkList").innerHTML =
-      (h.length ? h.map(item).join("") : `<li class="bk-empty">Nenhum backup ainda. Eles aparecem aqui a cada gravação, ou clique em “Fazer backup agora”.</li>`) +
-      (orig.length ? `<li class="bk-head">Cópias originais</li>` + orig.map(item).join("") : "");
+      (h.length ? h.map(item).join("") : `<li class="bk-empty">${esc(t("bk.empty"))}</li>`) +
+      (orig.length ? `<li class="bk-head">${esc(t("bk.originals"))}</li>` + orig.map(item).join("") : "");
   }
 
   async function restoreEntry(b) {
     const keys = Object.keys(b.parts);
-    if (!(await UI.ask(`Restaurar o backup de ${fmtTs(b.ts)}?\n${b.desc}\n\nVolta para o teclado: ${keys.map(k => PARTS[k]).join(", ")}. ` +
-      "Antes, o estado atual vira um backup novo.", { confirm: "Restaurar", danger: true }))) return log("Cancelado, nada foi gravado.");
+    if (!(await UI.ask(t("dialog.restoreEntry", { ts: fmtTs(b.ts), desc: descText(b), parts: keys.map(k => PARTS[k]).join(", ") }),
+      { confirm: t("common.restore"), danger: true }))) return log(t("log.cancelled"));
     const now = await readParts(keys);
-    autoBackup(now, `Antes de restaurar o backup de ${fmtTs(b.ts)}`);
+    autoBackup(now, { key: "history.restoreEntry", vars: { ts: fmtTs(b.ts) } });
     for (const k of keys) {
       const data = parseHex(b.parts[k]);
-      if (k === "palette") await writePalette(data, `restauração das cores (${fmtTs(b.ts)})`);
-      else if (k === "profile") await writeProfile(now.profile, data, `restaurar o efeito de ${fmtTs(b.ts)}`, { desc: null, confirmed: true });
-      else await writeAndVerify(data, `restauração das teclas (${fmtTs(b.ts)})`, parseInt(k, 16));
+      if (k === "palette") await writePalette(data, t("label.restoreColors", { ts: fmtTs(b.ts) }));
+      else if (k === "profile") await writeProfile(now.profile, data, t("label.restoreEffect", { ts: fmtTs(b.ts) }), { desc: null, confirmed: true });
+      else await writeAndVerify(data, t("label.restoreKeys", { ts: fmtTs(b.ts) }), parseInt(k, 16));
     }
   }
 
   async function manualBackup() {
     const name = $("bkName").value.trim();
-    log("Lendo tudo do teclado para o backup…", "tx");
-    addBackup(await readParts(["d8", "d4", "palette", "profile"], true), name || "Backup manual", false);
+    log(t("log.readingAll"), "tx");
+    addBackup(await readParts(["d8", "d4", "palette", "profile"], true), name || t("bk.defaultName"), false);
     $("bkName").value = "";
   }
 
@@ -658,7 +661,7 @@
     if (r) { const b = find(r.dataset.restore); if (b) act(() => restoreEntry(b)); }
     if (d) {
       const b = find(d.dataset.del);
-      if (!b || !(await UI.ask(`Excluir o backup de ${fmtTs(b.ts)}?\n${b.desc}`, { confirm: "Excluir", danger: true, disclaimer: false }))) return;
+      if (!b || !(await UI.ask(t("dialog.delete", { ts: fmtTs(b.ts), desc: descText(b) }), { confirm: t("bk.delete"), danger: true, disclaimer: false }))) return;
       saveHistory(loadHistory().filter(x => x.id !== b.id));
       renderHistory();
     }
@@ -693,7 +696,7 @@
     renderPanel();
     if (!matrix) return;
     const m = matrix.keys[k.matrix];
-    log(`Tecla "${k.name}" (posição ${k.matrix}) — normal: ${m.normal}${m.fn ? ` · com Fn: ${m.fn}` : ""}`);
+    log(t(m.fn ? "log.keySel.fn" : "log.keySel", { name: k.name, pos: k.matrix, normal: m.normal, fn: m.fn }));
   }
 
   function renderPanel() {
@@ -701,8 +704,8 @@
     $("rmEmpty").hidden = ready;
     $("rmBody").hidden = !ready;
     if (!ready) {
-      $("rmEmptyText").textContent = !dev.connected ? "Conecte o teclado e clique numa tecla do desenho."
-        : !matrix ? `Lendo o modo ${MODES[modeAddr]}…` : "Clique numa tecla do desenho.";
+      $("rmEmptyText").textContent = !dev.connected ? t("remap.empty.disconnected")
+        : !matrix ? t("remap.empty.reading", { mode: MODES[modeAddr] }) : t("remap.empty.pick");
       return;
     }
     const { k, layer } = sel;
@@ -714,15 +717,15 @@
     const origEntry = orig && entryAt(orig, off);
 
     $("rmKey").innerHTML = `<span class="rm-keycap">${esc(k.name)}</span>` +
-      `<div><div class="field-label">Tecla selecionada</div><div class="rm-key-meta">posição ${k.matrix} · modo ${MODES[modeAddr]}</div></div>`;
+      `<div><div class="field-label">${esc(t("remap.selected"))}</div><div class="rm-key-meta">${esc(t("remap.keyMeta", { pos: k.matrix, mode: MODES[modeAddr] }))}</div></div>`;
     document.querySelectorAll("#layerSeg button").forEach(b => {
       b.classList.toggle("on", b.dataset.layer === sel.layer);
       b.disabled = b.dataset.layer === "fn" && m.fnOff === null;
-      b.title = b.disabled ? "Esta tecla não tem camada Fn no firmware" : "";
+      b.title = b.disabled ? t("remap.noFnLayer") : "";
     });
     $("rmCurrent").innerHTML =
-      `<span class="field-label">Faz agora</span><strong>${esc(describeEntry(cur))}</strong>` +
-      (origEntry && !sameEntry(cur, origEntry) ? `<span class="hint">Original: ${esc(describeEntry(origEntry))}</span>` : "");
+      `<span class="field-label">${esc(t("remap.now"))}</span><strong>${esc(describeEntry(cur))}</strong>` +
+      (origEntry && !sameEntry(cur, origEntry) ? `<span class="hint">${esc(t("remap.original", { v: describeEntry(origEntry) }))}</span>` : "");
     $("rmResetKey").disabled = !origEntry || sameEntry(cur, origEntry);
     renderList();
     renderPreview();
@@ -765,7 +768,7 @@
       });
       box.appendChild(b);
     }
-    if (!list.children.length) list.innerHTML = `<div class="hint">Nada encontrado.</div>`;
+    if (!list.children.length) list.innerHTML = `<div class="hint">${esc(t("remap.notFound"))}</div>`;
   }
 
   // teclas (posição do layout) cuja função normal é Fn, olhando a matriz atual
@@ -780,9 +783,9 @@
     // atalho só faz sentido para teclas comuns (letras, números, símbolos, F-keys, navegação)
     $("rmCombo").hidden = !(choice && choice.combo && choice.bytes[3]);
     if (choice) $("rmComboHint").textContent =
-      `Marque os modificadores que devem ir junto: ex. ⌘ + ⇧ com “${choice.label}” faz a tecla mandar ⇧⌘${choice.label.split(" ")[0]} com um toque só.`;
+      t("remap.comboHint", { label: choice.label, first: choice.label.split(" ")[0] });
     if (!choice) {
-      $("rmPreview").textContent = "Escolha a nova função na lista.";
+      $("rmPreview").textContent = t("remap.choose");
       $("rmApply").disabled = true;
       return;
     }
@@ -790,14 +793,14 @@
     const cur = entryAt(matrixData, off);
     const next = encodeChoice(choice, modMask());
     const shared = sharedWith(sel.k);
-    const layerName = sel.layer === "fn" ? "Com Fn" : "Normal";
+    const layerName = t(sel.layer === "fn" ? "remap.layer.fn" : "remap.layer.normal");
     const FN = window.K652Keys.KEY_TYPE.FN;
     // tirar o Fn da última tecla que o tem deixa sem mídia/LED/Bluetooth até colocar o Fn em outra
     const losesFn = sel.layer === "normal" && cur[0] === FN && next[0] !== FN && fnKeys().length <= 1;
     const warns = [];
-    if (shared.length) warns.push(`Compartilha a tabela Fn com ${shared.map(x => esc(x.name)).join(", ")}, que também muda.`);
-    if (next[0] === FN && modeAddr === 0xd4) warns.push("Experimental: o modo Windows de fábrica não tem Fn nesta tabela. Se depois de gravar o Fn não funcionar, use “Voltar ao original”.");
-    if (losesFn) warns.push("Esta é a única tecla Fn: depois de gravar, as funções com Fn (mídia, LED, Bluetooth) só voltam quando você puser o Fn em outra tecla. Dá para fazer isso aqui mesmo, sem precisar do Fn.");
+    if (shared.length) warns.push(tHtml("warn.shared", { names: shared.map(x => x.name).join(", ") }));
+    if (next[0] === FN && modeAddr === 0xd4) warns.push(tHtml("warn.fnWindows"));
+    if (losesFn) warns.push(tHtml("warn.lastFn"));
     $("rmPreview").innerHTML =
       `<div class="arrow"><span class="muted">${layerName}</span><span class="pill">${esc(describeEntry(cur))}</span>` +
       `<span class="muted">→</span><span class="pill new">${esc(describeEntry(next))}</span></div>` +
@@ -811,10 +814,10 @@
     if (!loadBackup(modeAddr)) saveBackup(cur, modeAddr);
     const fresh = parseMatrix(cur).keys[k.matrix];
     const off = layer === "fn" ? fresh.fnOff : fresh.normalOff;
-    if (off === null) throw new Error("Esta tecla não tem camada Fn.");
-    if (sameEntry(entryAt(cur, off), entry)) { setMatrix(cur); return log("Nada a gravar: a tecla já está assim."); }
-    if (!(await UI.ask(`Gravar no teclado?\n${label} (modo ${MODES[modeAddr]}).`))) return log("Cancelado, nada foi gravado.");
-    autoBackup({ [matrixPart(modeAddr)]: cur }, `Antes de alterar a tecla ${label} (modo ${MODES[modeAddr]})`);
+    if (off === null) throw new Error(t("error.noFn"));
+    if (sameEntry(entryAt(cur, off), entry)) { setMatrix(cur); return log(t("log.keySame")); }
+    if (!(await UI.ask(t("dialog.writeKey", { label, mode: MODES[modeAddr] })))) return log(t("log.cancelled"));
+    autoBackup({ [matrixPart(modeAddr)]: cur }, { key: "history.key", vars: { label, addr: modeAddr } });
     const next = cur.slice();
     next.set(entry, off);
     await writeAndVerify(next, label, modeAddr);
@@ -825,7 +828,7 @@
     const entry = encodeChoice(choice, modMask());
     const before = describeEntry(entryAt(matrixData, slotOf(sel.k, sel.layer)));
     await writeSlot(sel.k, sel.layer, entry,
-      `"${sel.k.name}" ${sel.layer === "fn" ? "com Fn" : "normal"}: ${before} → ${describeEntry(entry)}`);
+      t(sel.layer === "fn" ? "label.key.fn" : "label.key.normal", { name: sel.k.name, from: before, to: describeEntry(entry) }));
     choice = null;
     renderPanel();
   }
@@ -834,7 +837,7 @@
     const orig = loadBackup(modeAddr)?.data;
     if (!sel || !orig) return;
     const entry = entryAt(orig, slotOf(sel.k, sel.layer));
-    await writeSlot(sel.k, sel.layer, entry, `"${sel.k.name}" de volta ao original (${describeEntry(entry)})`);
+    await writeSlot(sel.k, sel.layer, entry, t("label.key.reset", { name: sel.k.name, to: describeEntry(entry) }));
   }
 
   // texto decodificado no dump do laboratório
@@ -846,7 +849,7 @@
       if (!m) continue;
       lines.push(`${String(k.matrix).padStart(3)}  ${k.name.padEnd(10)} ${m.normal.padEnd(14)}${m.fn ? " Fn: " + m.fn : ""}`);
     }
-    $("dump").textContent += "\n\nDecodificado (matriz  tecla  normal  Fn):\n" + lines.join("\n");
+    $("dump").textContent += "\n\n" + t("dump.decoded") + "\n" + lines.join("\n");
   }
 
   // ---------- caixas de texto: copiar e Cmd/Ctrl+A local ----------
@@ -861,24 +864,24 @@
       btns.className = "copy-btns";
       // o log mostra os bytes cortados; copiar/exportar levam o texto completo
       const isLog = el === logEl;
-      const label = isLog ? "Copiar completo" : "Copiar";
+      const label = t(isLog ? "copy.full" : "copy.copy");
       const btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.textContent = label;
       btn.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(isLog ? fullLogText() : el.innerText);
-          btn.innerHTML = `${icon("check", 12)}Copiado`;
+          btn.innerHTML = icon("check", 12) + esc(t("copy.done"));
         } catch (e) {
-          btn.textContent = "Falhou";
-          log("Falha ao copiar: " + e.message, "err");
+          btn.textContent = t("copy.failed");
+          log(t("log.copyFail", { msg: e.message }), "err");
         }
         setTimeout(() => (btn.textContent = label), 1200);
       });
       if (isLog) {
         const exp = document.createElement("button");
         exp.className = "copy-btn";
-        exp.textContent = "Exportar .txt";
+        exp.textContent = t("copy.export");
         exp.addEventListener("click", exportLog);
         btns.appendChild(exp);
       }
@@ -938,11 +941,11 @@
       (e.target.closest?.("button") && [" ", "Enter"].includes(e.key));
     if (!matrix || inControl || document.body.classList.contains("modal-open") || comboWithMod || e.repeat) return;
     const hid = CODE_TO_HID[e.code];
-    const tag = `${e.code} (key "${e.key}")`;
-    if (hid === undefined) return log(`Tecla física: ${tag} — sem código HID mapeado.`);
+    const tag = t("phys.tag", { code: e.code, key: e.key });
+    if (hid === undefined) return log(t("log.phys.unmapped", { tag }));
     const idx = matrix.keys.map((_, i) => i).filter(i => baseCode(i) === hid);
-    const names = idx.map(i => `${i}${layout.keys.find(k => k.matrix === i) ? "" : " (fora do mockup)"}`);
-    log(`Tecla física: ${tag} = HID 0x${hid.toString(16)} → matriz ${names.join(", ") || "nenhuma"}`);
+    const names = idx.map(i => layout.keys.find(k => k.matrix === i) ? String(i) : t("phys.outside", { n: i }));
+    log(t("log.phys", { tag, hid: hid.toString(16), matrix: names.join(", ") || t("phys.none") }));
     for (const i of idx) {
       const k = layout.keys.find(x => x.matrix === i);
       const el = k && document.querySelector(`.key[data-id="${k.id}"]`);
@@ -954,6 +957,7 @@
   });
 
   // ---------- boot ----------
+  I18N.apply(document); // antes dos ícones: texto e ícone podem dividir o mesmo botão (em spans separados)
   document.querySelectorAll("[data-icon]").forEach(el => (el.innerHTML = icon(el.dataset.icon)));
   if (!("hid" in navigator)) $("noHid").hidden = false;
   UI.tabs($("tabs"), { storageKey: "k652.tab" });
@@ -964,13 +968,13 @@
   document.querySelectorAll(".disclosure").forEach(UI.disclosure);
   UI.select($("macFx"), K652Lighting.LED_EFFECTS.map((name, n) => ({ value: n, label: name, hint: n })).slice(1)).value = 1;
   UI.select($("fxSel"), [...Array(20).keys()].map(i => i + 1).concat(0).map(n => ({ value: n, label: effectName(n), hint: n })),
-    { placeholder: "Escolher efeito…" });
-  UI.slider($("bsBright"), { label: "Brilho", icon: "sun", value: 4 });
-  UI.slider($("bsSpeed"), { label: "Velocidade", icon: "gauge", value: 2 });
+    { placeholder: t("lighting.pick") });
+  UI.slider($("bsBright"), { label: t("slider.bright"), icon: "sun", value: 4 });
+  UI.slider($("bsSpeed"), { label: t("slider.speed"), icon: "gauge", value: 2 });
   for (let i = 0; i < 7; i++) {
     const b = document.createElement("button");
-    b.title = `Cor ${i + 1} (Fn+PgDn)`;
-    b.setAttribute("aria-label", `Cor ${i + 1}`);
+    b.title = t("mac.color.title", { n: i + 1 });
+    b.setAttribute("aria-label", t("mac.color.aria", { n: i + 1 }));
     b.innerHTML = `<span class="swatch-n">${i + 1}</span>`;
     $("macColors").appendChild(UI.swatch(b));
   }
@@ -993,10 +997,10 @@
 
   navigator.hid?.addEventListener?.("disconnect", e => {
     if (dev.owns(e.device)) {
-      setStatus(false, "Desconectado");
-      log("Teclado desconectado.", "err");
+      setStatus(false, t("status.disconnected"));
+      log(t("log.disconnected"), "err");
     }
   });
 
-  log("App pronto. Clique em “Conectar” (navegador baseado em Chromium, servido via http://localhost ou https).");
+  log(t("log.ready"));
 })();

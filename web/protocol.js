@@ -97,14 +97,14 @@ class K652Device {
     }
     this.devices = list;
     list.forEach((d, i) =>
-      this.log(`HIDDevice #${i}: ${d.productName} — feature reports [${featureIds(d).map(id => `${id}:${featureLength(d, id)}B`).join(", ") || "nenhum"}]`));
+      this.log(`HIDDevice #${i}: ${d.productName} — feature reports [${featureIds(d).map(id => `${id}:${featureLength(d, id)}B`).join(", ") || t("proto.none")}]`));
   }
 
   async connect() {
     const picked = await navigator.hid.requestDevice({
       filters: [{ vendorId: K652.vendorId, productId: K652.productId }],
     });
-    if (!picked.length) throw new Error("Nenhum dispositivo selecionado.");
+    if (!picked.length) throw new Error(t("proto.noDevice"));
     // requestDevice pode devolver só a interface clicada; getDevices traz todas as autorizadas
     const all = (await navigator.hid.getDevices()).filter(isK652);
     await this._openAll(all.length ? all : picked);
@@ -154,7 +154,7 @@ class K652Device {
     if (len && payload.length !== len) {
       const fixed = new Uint8Array(len);
       fixed.set(payload.slice(0, len));
-      this.log(`(payload ajustado de ${payload.length} para ${len} bytes, tamanho do report ${reportId})`);
+      this.log(t("proto.payloadFixed", { from: payload.length, to: len, id: reportId }));
       payload = fixed;
     }
     await d.sendFeatureReport(reportId, payload);
@@ -181,7 +181,7 @@ class K652Device {
         await this.sendFeature(REPORT.WRITE, payload);
         return true;
       } catch (e) {
-        this.log(`SendCommand tentativa ${i + 1} falhou: ${e.message}`);
+        this.log(t("proto.sendFail", { n: i + 1, msg: e.message }));
         await sleep(200);
       }
     }
@@ -194,7 +194,7 @@ class K652Device {
       try {
         return await this.getFeature(reportId);
       } catch (e) {
-        this.log(`GetCommand tentativa ${i + 1} falhou: ${e.message}`);
+        this.log(t("proto.getFail", { n: i + 1, msg: e.message }));
         await sleep(200);
       }
     }

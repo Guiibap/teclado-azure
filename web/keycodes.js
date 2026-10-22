@@ -43,16 +43,10 @@ const HID_NAMES = (() => {
   return t;
 })();
 
-const CONSUMER_NAMES = {
-  0x006f: "Brilho tela +", 0x0070: "Brilho tela −", 0x00b5: "Próxima", 0x00b6: "Anterior",
-  0x00b7: "Stop", 0x00cd: "Play/Pause", 0x00cf: "Ditado (Siri)", 0x00e2: "Mudo", 0x00e9: "Volume +", 0x00ea: "Volume −",
-  0x0183: "Player", 0x018a: "E-mail", 0x0192: "Calculadora", 0x0194: "Meu computador",
-  0x0221: "Pesquisar", 0x0223: "Página inicial", 0x0224: "Voltar", 0x0225: "Avançar",
-  0x0227: "Atualizar", 0x022a: "Favoritos",
-};
+const CONSUMER_NAMES = Object.fromEntries(["0x006f", "0x0070", "0x00b5", "0x00b6", "0x00b7", "0x00cd", "0x00cf", "0x00e2", "0x00e9", "0x00ea", "0x0183", "0x018a", "0x0192", "0x0194", "0x0221", "0x0223", "0x0224", "0x0225", "0x0227", "0x022a"].map(h => [parseInt(h, 16), t("consumer." + h)]));
 
 // Funções internas (tipo 0x0e): nomes das legendas dos keycaps (foto teclado-azure.jpg) e do manual (Fn+Esc, Fn+Espaço)
-const INTERNAL_NAMES = { 0x05: "Reset de fábrica", 0x0c: "BT1", 0x0d: "BT2", 0x0e: "BT3", 0x0f: "2.4G", 0x16: "Luz liga/desliga" };
+const INTERNAL_NAMES = Object.fromEntries(["0x05", "0x0c", "0x0d", "0x0e", "0x0f", "0x16"].map(h => [parseInt(h, 16), t("internal." + h)]));
 
 // bits do param de uma tecla tipo 0 (máscara de modificadores HID); exibidos na ordem do Mac ⌃⌥⇧⌘
 const MOD_BITS = [
@@ -74,15 +68,15 @@ function describeEntry(e) {
     case KEY_TYPE.MODIFIER: return HID_NAMES[code] ?? `Mod 0x${hexb(code)}`;
     case KEY_TYPE.CONSUMER: {
       const u = (param << 8) | code;
-      return CONSUMER_NAMES[u] ?? `Mídia 0x${hexb(u, 4)}`;
+      return CONSUMER_NAMES[u] ?? t("entry.media", { code: hexb(u, 4) });
     }
-    case KEY_TYPE.LED_BRIGHT: return `LED brilho ${param === 1 ? "+" : param === 2 ? "−" : param}`;
-    case KEY_TYPE.LED_SPEED: return `LED velocidade ${param === 1 ? "+" : param === 2 ? "−" : param}`;
+    case KEY_TYPE.LED_BRIGHT: return t("entry.ledBright", { v: param === 1 ? "+" : param === 2 ? "−" : param });
+    case KEY_TYPE.LED_SPEED: return t("entry.ledSpeed", { v: param === 1 ? "+" : param === 2 ? "−" : param });
     case KEY_TYPE.FN: return "Fn";
-    case KEY_TYPE.INTERNAL: return INTERNAL_NAMES[code] ?? `Interna 0x${hexb(code)}`;
+    case KEY_TYPE.INTERNAL: return INTERNAL_NAMES[code] ?? t("entry.internal", { code: hexb(code) });
     // manual + teste ao vivo: Fn+PgUp troca o efeito, Fn+End grava luz por tecla, Fn+PgDn muda a cor
-    case 0x0b: return param === 3 ? "LED próximo efeito" : param === 0 && code === 0x20 ? "LED gravar por tecla" : `tipo 0x0b [${hexb(param)} ${hexb(code)}]`;
-    case 0x12: return param === 3 ? "LED cor" : `tipo 0x12 [${hexb(param)} ${hexb(code)}]`;
+    case 0x0b: return param === 3 ? t("entry.ledNext") : param === 0 && code === 0x20 ? t("entry.ledPerKey") : `tipo 0x0b [${hexb(param)} ${hexb(code)}]`;
+    case 0x12: return param === 3 ? t("entry.ledColor") : `tipo 0x12 [${hexb(param)} ${hexb(code)}]`;
     default: return `tipo 0x${hexb(type)} [${hexb(param)} ${hexb(code)}]`;
   }
 }
@@ -112,21 +106,21 @@ function parseMatrix(data) {
 const CATALOG = (() => {
   const out = [];
   const key = (group, code) => out.push({ group, label: HID_NAMES[code], bytes: [0, 0, 0, code], combo: true });
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((_, i) => key("Letras", 0x04 + i));
-  for (let i = 0; i < 10; i++) key("Números", 0x1e + i);
-  [0x35, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x33, 0x34, 0x36, 0x37, 0x38, 0x87, 0x64].forEach(c => key("Símbolos (ABNT2)", c));
-  [0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x39, 0x4c, 0x49, 0x65].forEach(c => key("Edição", c));
-  [0x52, 0x51, 0x50, 0x4f, 0x4a, 0x4d, 0x4b, 0x4e].forEach(c => key("Navegação", c));
-  for (let i = 0; i < 12; i++) key("F1–F12", 0x3a + i);
-  for (let i = 0; i < 8; i++) key("F13–F20 (bons para atalhos)", 0x68 + i);
-  [0x46, 0x47, 0x48].forEach(c => key("Sistema", c));
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((_, i) => key(t("group.letters"), 0x04 + i));
+  for (let i = 0; i < 10; i++) key(t("group.numbers"), 0x1e + i);
+  [0x35, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x33, 0x34, 0x36, 0x37, 0x38, 0x87, 0x64].forEach(c => key(t("group.symbols"), c));
+  [0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x39, 0x4c, 0x49, 0x65].forEach(c => key(t("group.editing"), c));
+  [0x52, 0x51, 0x50, 0x4f, 0x4a, 0x4d, 0x4b, 0x4e].forEach(c => key(t("group.navigation"), c));
+  for (let i = 0; i < 12; i++) key(t("group.f1"), 0x3a + i);
+  for (let i = 0; i < 8; i++) key(t("group.f13"), 0x68 + i);
+  [0x46, 0x47, 0x48].forEach(c => key(t("group.system"), c));
   // Fn: na tabela do modo Mac (D8) a tecla Fn é a entrada tipo 0x20. Na do Windows (D4) a posição do Fn
   // guarda um E3 e, ligado no Mac, ela manda Command (teste 2026-10-22). Gravar 0x20 em D4 é experimental.
-  out.push({ group: "Modificadores", label: "Fn", bytes: [KEY_TYPE.FN, 0, 0, 0] });
-  for (let c = 0xe0; c <= 0xe7; c++) out.push({ group: "Modificadores", label: HID_NAMES[c], bytes: [KEY_TYPE.MODIFIER, 0, 0, c] });
+  out.push({ group: t("group.modifiers"), label: "Fn", bytes: [KEY_TYPE.FN, 0, 0, 0] });
+  for (let c = 0xe0; c <= 0xe7; c++) out.push({ group: t("group.modifiers"), label: HID_NAMES[c], bytes: [KEY_TYPE.MODIFIER, 0, 0, c] });
   for (const u of [0xcd, 0xb6, 0xb5, 0xe2, 0xea, 0xe9, 0x6f, 0x70, 0xcf, 0x221, 0x223, 0x224, 0x225, 0x192])
-    out.push({ group: "Mídia e sistema", label: CONSUMER_NAMES[u], bytes: [KEY_TYPE.CONSUMER, 0, u >> 8, u & 0xff] });
-  out.push({ group: "Outros", label: "Desativar tecla", bytes: [0, 0, 0, 0] });
+    out.push({ group: t("group.media"), label: CONSUMER_NAMES[u], bytes: [KEY_TYPE.CONSUMER, 0, u >> 8, u & 0xff] });
+  out.push({ group: t("group.other"), label: t("entry.disable"), bytes: [0, 0, 0, 0] });
   return out;
 })();
 

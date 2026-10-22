@@ -289,14 +289,14 @@
     const el = document.createElement("div");
     el.className = "ui-popover ui-color";
     el.setAttribute("role", "dialog");
-    el.setAttribute("aria-label", "Escolher cor");
+    el.setAttribute("aria-label", t("color.pick"));
     el.hidden = true;
     el.innerHTML =
-      `<div class="ui-color-sv" role="slider" tabindex="0" aria-label="Saturação e brilho"><div class="ui-color-sv-thumb"></div></div>` +
-      `<div class="ui-color-hue" role="slider" tabindex="0" aria-label="Matiz" aria-valuemin="0" aria-valuemax="360"><div class="ui-color-hue-thumb"></div></div>` +
+      `<div class="ui-color-sv" role="slider" tabindex="0" aria-label="${t("color.sv")}"><div class="ui-color-sv-thumb"></div></div>` +
+      `<div class="ui-color-hue" role="slider" tabindex="0" aria-label="${t("color.hue")}" aria-valuemin="0" aria-valuemax="360"><div class="ui-color-hue-thumb"></div></div>` +
       `<div class="ui-color-row"><span class="ui-color-preview"></span>` +
-      `<input class="ui-input mono ui-color-hex" type="text" spellcheck="false" maxlength="7" aria-label="Cor em hexadecimal"></div>` +
-      `<div class="ui-color-presets">${PRESETS.map(c => `<button type="button" class="ui-color-preset" style="--c:${c}" data-c="${c}" aria-label="${c === "#000000" ? "Apagado" : c}"></button>`).join("")}</div>`;
+      `<input class="ui-input mono ui-color-hex" type="text" spellcheck="false" maxlength="7" aria-label="${t("color.hex")}"></div>` +
+      `<div class="ui-color-presets">${PRESETS.map(c => `<button type="button" class="ui-color-preset" style="--c:${c}" data-c="${c}" aria-label="${c === "#000000" ? t("color.off") : c}"></button>`).join("")}</div>`;
     document.body.appendChild(el);
     const sv = el.querySelector(".ui-color-sv"), hue = el.querySelector(".ui-color-hue"), hexIn = el.querySelector(".ui-color-hex");
     const st = { hsv: { h: 0, s: 0, v: 0 }, target: null };
@@ -309,7 +309,7 @@
       el.style.setProperty("--sy", (1 - v) * 100 + "%");
       el.style.setProperty("--hx", (h / 360) * 100 + "%");
       hue.setAttribute("aria-valuenow", Math.round(h));
-      sv.setAttribute("aria-valuetext", `saturação ${Math.round(s * 100)}%, brilho ${Math.round(v * 100)}%`);
+      sv.setAttribute("aria-valuetext", t("color.sv.value", { s: Math.round(s * 100), v: Math.round(v * 100) }));
       if (!fromInput) hexIn.value = hx;
       if (st.target && st.target.value !== hx) { st.target.value = hx; fire(st.target, "input"); }
     }
@@ -390,9 +390,7 @@
 
   // ---------- diálogo de confirmação (no lugar de confirm()) ----------
   // A 1ª linha da mensagem vira o título; o resto, o corpo. Diálogos que gravam no teclado levam o aviso.
-  const DISCLAIMER = "Feito a partir da análise e do estudo do software original do teclado. " +
-    "O autor não se responsabiliza por danos ao teclado: use por sua conta e risco.";
-  function ask(message, { confirm = "Gravar", cancel = "Cancelar", danger = false, disclaimer = true } = {}) {
+  function ask(message, { confirm = t("dialog.write"), cancel = t("common.cancel"), danger = false, disclaimer = true } = {}) {
     const [title, ...rest] = message.split("\n");
     const body = rest.join("\n").trim();
     return new Promise(resolve => {
@@ -404,10 +402,12 @@
         `<div class="ui-dialog" role="alertdialog" aria-modal="true" aria-labelledby="${tid}" ${body ? `aria-describedby="${tid}-b"` : ""}>` +
         `<div class="ui-dialog-icon${danger ? " danger" : ""}">${icon(danger ? "triangle-alert" : "save", 18)}</div>` +
         `<h2 id="${tid}"></h2>${body ? `<div class="ui-dialog-body" id="${tid}-b"></div>` : ""}` +
-        (disclaimer ? `<p class="disclaimer">${icon("triangle-alert", 14)}<span>${DISCLAIMER}</span></p>` : "") +
-        `<div class="ui-dialog-actions"><button type="button" class="btn ghost" data-r="0">${cancel}</button>` +
-        `<button type="button" class="btn ${danger ? "danger" : "primary"}" data-r="1">${confirm}</button></div></div>`;
+        (disclaimer ? `<p class="disclaimer">${icon("triangle-alert", 14)}<span>${tHtml("disclaimer")}</span></p>` : "") +
+        `<div class="ui-dialog-actions"><button type="button" class="btn ghost" data-r="0"></button>` +
+        `<button type="button" class="btn ${danger ? "danger" : "primary"}" data-r="1"></button></div></div>`;
       ov.querySelector("h2").textContent = title;
+      ov.querySelector("[data-r=\"0\"]").textContent = cancel;
+      ov.querySelector("[data-r=\"1\"]").textContent = confirm;
       if (body) ov.querySelector(".ui-dialog-body").textContent = body;
       document.body.appendChild(ov);
       document.body.classList.add("modal-open");

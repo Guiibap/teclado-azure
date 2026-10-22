@@ -20,14 +20,9 @@ const PROFILE_STRIDE = 0x7b;
 // Ordem da lista "Light" do app original (captura2.jpeg) = código gravado no byte [5] do bloco.
 // Confirmado ao vivo de 4 a 9, 11 e 13 (descrições do usuário batem com os nomes). Do 19 em diante vem do cfg
 // (LedOpt19..22) e do text.xml: 20 Perfect, 21 Self-define (grava [4] = 1), OFF = código 0.
-const LED_EFFECTS = [
-  "Desligado", "Fixo", "Respirar", "Arco-íris", "Flash que some", "Gotas de chuva", "Roda arco-íris",
-  "Ondulações", "Estrelas piscando", "Sombra que some", "Cobra retrô", "Fluxo neon", "Reação",
-  "Onda senoidal", "Varredura", "Moinho girando", "Cascata colorida", "Florescer", "Tempestade girando",
-  "Colisão", "Perfeito", "Personalizado", "efeito 22 (?)",
-];
+const LED_EFFECTS = Array.from({ length: 23 }, (_, i) => t("effects." + i));
 
-function effectName(i) { return LED_EFFECTS[i] ?? `efeito ${i}`; }
+function effectName(i) { return LED_EFFECTS[i] ?? t("effects.unknown", { n: i }); }
 
 // data = resp[7..] inteiro (não só os 0x88 bytes que o app original copia)
 function parseProfile(data) {
@@ -49,12 +44,12 @@ function parseProfile(data) {
 
 // rótulo de um offset dentro da leitura, para a comparação
 function describeOffset(off) {
-  if (off < 8) return `global[${off}]`;
+  if (off < 8) return t("offset.global", { n: off });
   const n = Math.floor((off - 8) / PROFILE_STRIDE), o = (off - 8) % PROFILE_STRIDE;
-  const name = o === 4 ? "personalizado" : o === 5 ? "efeito" : o === 6 ? "grupo"
-    : o >= 0x14 && o < 0x50 ? `parâmetro ${(o - 0x14) % 2 ? "B (brilho/veloc.)" : "A (cor/direção)"} do efeito ${Math.floor((o - 0x14) / 2)}`
-    : o >= 0x50 && o < 0x5a ? "bloco 04 04… (não decifrado)" : "";
-  return `bloco ${n + 1} [0x${o.toString(16).padStart(2, "0")}]${name ? " " + name : ""}`;
+  const name = o === 4 ? t("offset.custom") : o === 5 ? t("offset.effect") : o === 6 ? t("offset.group")
+    : o >= 0x14 && o < 0x50 ? t((o - 0x14) % 2 ? "offset.paramB" : "offset.paramA", { fx: Math.floor((o - 0x14) / 2) })
+    : o >= 0x50 && o < 0x5a ? t("offset.unknown") : "";
+  return `${t("offset.block", { n: n + 1 })} [0x${o.toString(16).padStart(2, "0")}]${name ? " " + name : ""}`;
 }
 
 window.K652Lighting = { LED_EFFECTS, effectName, parseProfile, describeOffset, PROFILE_STRIDE };

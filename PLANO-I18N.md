@@ -1,6 +1,6 @@
 # Plano: suporte a vários idiomas (i18n)
 
-Status: **planejado, não implementado.** Esta etapa só prepara o app. Nenhum texto é traduzido: o único idioma continua sendo o pt-BR, e a interface deve ficar idêntica ao que é hoje.
+Status: **implementado** (passos 1–5, 7, 8 e 10; passo 6 feito junto; passo 9 pela alternativa de recarregar a página; seletor de idioma ainda não, porque só há um dicionário). Esta etapa só prepara o app. Nenhum texto é traduzido: o único idioma continua sendo o pt-BR, e a interface deve ficar idêntica ao que é hoje.
 
 ## Decisão
 

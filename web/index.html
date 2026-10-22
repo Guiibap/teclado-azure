@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Configurador web do teclado Redragon K652 RGB PRO: remapeamento de teclas e iluminação pelo navegador (WebHID).">
+<meta name="description" data-i18n-content="meta.description" content="Configurador web do teclado Redragon K652 RGB PRO: remapeamento de teclas e iluminação pelo navegador (WebHID).">
 <title>K652 Config</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="styles.css?v=38">
+<link rel="stylesheet" href="styles.css?v=39">
 </head>
 <body>
 <header class="topbar">
@@ -21,33 +21,33 @@
     </div>
   </div>
   <div class="topbar-mid">
-    <div class="seg" id="modeSeg" aria-label="Modo do teclado">
+    <div class="seg" id="modeSeg" data-i18n-aria-label="header.mode.aria" aria-label="Modo do teclado">
       <button type="button" data-addr="d8" class="on"><span data-icon="brand-apple"></span>Mac</button>
       <button type="button" data-addr="d4"><span data-icon="brand-windows"></span>Windows</button>
     </div>
   </div>
   <div class="topbar-end">
-    <div id="status" class="status off" role="status"><span class="dot"></span><span class="status-text">Desconectado</span></div>
-    <button type="button" id="btnConnect" class="btn primary"><span data-icon="usb"></span>Conectar</button>
+    <div id="status" class="status off" role="status"><span class="dot"></span><span class="status-text" data-i18n="status.disconnected">Desconectado</span></div>
+    <button type="button" id="btnConnect" class="btn primary"><span data-icon="usb"></span><span data-i18n="header.connect">Conectar</span></button>
   </div>
 </header>
 
 <div id="noHid" class="banner" hidden>
   <span data-icon="triangle-alert"></span>
-  <span>Este navegador não tem WebHID. Abra esta página num navegador baseado em Chromium (Chrome, Edge, Brave, Opera e outros), no computador.</span>
+  <span data-i18n="banner.nohid">Este navegador não tem WebHID. Abra esta página num navegador baseado em Chromium (Chrome, Edge, Brave, Opera e outros), no computador.</span>
 </div>
 
 <main>
-  <section id="kbSection" class="stage" aria-label="Teclado">
-    <p class="disclaimer"><span data-icon="triangle-alert"></span><span>Feito a partir da análise e do estudo do software original do teclado. O autor não se responsabiliza por danos ao teclado: use por sua conta e risco.</span></p>
+  <section id="kbSection" class="stage" data-i18n-aria-label="stage.aria" aria-label="Teclado">
+    <p class="disclaimer"><span data-icon="triangle-alert"></span><span data-i18n="disclaimer">Feito a partir da análise e do estudo do software original do teclado. O autor não se responsabiliza por danos ao teclado: use por sua conta e risco.</span></p>
     <div class="stage-head">
-      <p id="kbHint" class="hint">Clique numa tecla para remapear. As teclas que você aperta no teclado físico piscam aqui.</p>
+      <p id="kbHint" class="hint" data-i18n="keys.hint">Clique numa tecla para remapear. As teclas que você aperta no teclado físico piscam aqui.</p>
       <div class="stage-tools">
-        <ul class="legend" aria-label="Legenda">
-          <li><span class="lg lg-changed"></span>alterada</li>
-          <li><span class="lg lg-fn"></span>tem função com Fn</li>
+        <ul class="legend" data-i18n-aria-label="legend.aria" aria-label="Legenda">
+          <li><span class="lg lg-changed"></span><span data-i18n="legend.changed">alterada</span></li>
+          <li><span class="lg lg-fn"></span><span data-i18n="legend.fn">tem função com Fn</span></li>
         </ul>
-        <button id="chkShowMatrix" aria-checked="true">Mostrar funções</button>
+        <button id="chkShowMatrix" aria-checked="true" data-i18n="legend.show">Mostrar funções</button>
       </div>
     </div>
     <div class="kb-frame">
@@ -56,11 +56,11 @@
     </div>
   </section>
 
-  <nav class="tabs" id="tabs" aria-label="Seções">
-    <button type="button" data-tab="keys" id="tab-keys" aria-controls="panel-keys"><span data-icon="command"></span>Teclas</button>
-    <button type="button" data-tab="light" id="tab-light" aria-controls="panel-light"><span data-icon="lightbulb"></span>Iluminação</button>
-    <button type="button" data-tab="adv" id="tab-adv" aria-controls="panel-adv"><span data-icon="terminal"></span>Avançado</button>
-    <button type="button" data-tab="backup" id="tab-backup" aria-controls="panel-backup"><span data-icon="archive"></span>Backup</button>
+  <nav class="tabs" id="tabs" data-i18n-aria-label="tabs.aria" aria-label="Seções">
+    <button type="button" data-tab="keys" id="tab-keys" aria-controls="panel-keys"><span data-icon="command"></span><span data-i18n="tabs.keys">Teclas</span></button>
+    <button type="button" data-tab="light" id="tab-light" aria-controls="panel-light"><span data-icon="lightbulb"></span><span data-i18n="tabs.lighting">Iluminação</span></button>
+    <button type="button" data-tab="adv" id="tab-adv" aria-controls="panel-adv"><span data-icon="terminal"></span><span data-i18n="tabs.advanced">Avançado</span></button>
+    <button type="button" data-tab="backup" id="tab-backup" aria-controls="panel-backup"><span data-icon="archive"></span><span data-i18n="tabs.backup">Backup</span></button>
   </nav>
 
   <!-- ===================== Teclas ===================== -->
@@ -68,19 +68,19 @@
     <div id="remap" class="card remap">
       <div id="rmEmpty" class="empty">
         <span class="empty-ico" data-icon="keyboard"></span>
-        <p id="rmEmptyText">Conecte o teclado e clique numa tecla do desenho.</p>
+        <p id="rmEmptyText" data-i18n="remap.empty.disconnected">Conecte o teclado e clique numa tecla do desenho.</p>
       </div>
       <div id="rmBody" class="remap-grid" hidden>
         <div class="remap-side">
-          <div class="field-label">Tecla selecionada</div>
+          <div class="field-label" data-i18n="remap.selected">Tecla selecionada</div>
           <div id="rmKey" class="rm-key"></div>
-          <div class="seg seg-full" id="layerSeg" aria-label="Camada">
-            <button type="button" data-layer="normal" class="on">Normal</button>
-            <button type="button" data-layer="fn">Com Fn</button>
+          <div class="seg seg-full" id="layerSeg" data-i18n-aria-label="remap.layer.aria" aria-label="Camada">
+            <button type="button" data-layer="normal" class="on" data-i18n="remap.layer.normal">Normal</button>
+            <button type="button" data-layer="fn" data-i18n="remap.layer.fn">Com Fn</button>
           </div>
           <div id="rmCurrent" class="rm-current"></div>
           <div class="rm-combo" id="rmCombo" hidden>
-            <div class="field-label">Transformar em atalho <span class="muted">· opcional</span></div>
+            <div class="field-label"><span data-i18n="remap.combo.title">Transformar em atalho</span> <span class="muted" data-i18n="remap.combo.optional">· opcional</span></div>
             <div class="chips" id="rmMods">
               <button class="chip" data-bit="0"><kbd>⌃</kbd>Control</button>
               <button class="chip" data-bit="2"><kbd>⌥</kbd>Option</button>
@@ -91,26 +91,26 @@
           </div>
           <div id="rmPreview" class="rm-preview"></div>
           <div class="btn-row">
-            <button type="button" id="rmApply" class="btn primary" disabled><span data-icon="save"></span>Gravar no teclado</button>
-            <button type="button" id="rmResetKey" class="btn" disabled><span data-icon="undo-2"></span>Voltar ao original</button>
+            <button type="button" id="rmApply" class="btn primary" disabled><span data-icon="save"></span><span data-i18n="remap.apply">Gravar no teclado</span></button>
+            <button type="button" id="rmResetKey" class="btn" disabled><span data-icon="undo-2"></span><span data-i18n="remap.reset">Voltar ao original</span></button>
           </div>
         </div>
         <div class="palette">
           <div class="palette-search">
             <span data-icon="search"></span>
             <input id="rmSearch" class="bare" type="text" autocomplete="off" spellcheck="false"
-              placeholder="Buscar função: volume, ç, f13, command…" aria-label="Buscar função" aria-controls="rmList">
+              data-i18n-placeholder="remap.search.placeholder" placeholder="Buscar função: volume, ç, f13, command…" data-i18n-aria-label="remap.search.aria" aria-label="Buscar função" aria-controls="rmList">
           </div>
-          <div id="rmList" class="rm-list" role="listbox" aria-label="Funções"></div>
+          <div id="rmList" class="rm-list" role="listbox" data-i18n-aria-label="remap.list.aria" aria-label="Funções"></div>
         </div>
       </div>
     </div>
 
     <div class="card subtle">
-      <button class="disclosure" aria-controls="factoryBody"><span data-icon="chevron-down"></span>Restaurar o modo inteiro</button>
+      <button class="disclosure" aria-controls="factoryBody"><span data-icon="chevron-down"></span><span data-i18n="factory.title">Restaurar o modo inteiro</span></button>
       <div id="factoryBody" class="disclosure-body" hidden>
-        <p id="wrBackupInfo" class="hint">Sem backup salvo ainda.</p>
-        <button type="button" id="btnWrUndo" class="btn danger-ghost"><span data-icon="history"></span>Restaurar o modo selecionado inteiro</button>
+        <p id="wrBackupInfo" class="hint" data-i18n="factory.none">Sem backup salvo ainda.</p>
+        <button type="button" id="btnWrUndo" class="btn danger-ghost"><span data-icon="history"></span><span data-i18n="factory.restore">Restaurar o modo selecionado inteiro</span></button>
       </div>
     </div>
   </section>
@@ -120,45 +120,45 @@
     <div class="grid-2">
       <div class="card" id="bsGroup">
         <div class="card-head">
-          <h2><span data-icon="sparkles"></span>Efeito</h2>
-          <button type="button" id="bsRead" class="btn ghost sm"><span data-icon="refresh-cw"></span>Ler do teclado</button>
+          <h2><span data-icon="sparkles"></span><span data-i18n="lighting.effect">Efeito</span></h2>
+          <button type="button" id="bsRead" class="btn ghost sm"><span data-icon="refresh-cw"></span><span data-i18n="lighting.read">Ler do teclado</span></button>
         </div>
-        <p class="hint">Vale para o modo selecionado lá em cima. Brilho e velocidade são do efeito aceso agora.</p>
+        <p class="hint" data-i18n="lighting.effect.hint">Vale para o modo selecionado lá em cima. Brilho e velocidade são do efeito aceso agora.</p>
         <div class="field">
-          <div class="field-label">Efeito</div>
+          <div class="field-label" data-i18n="lighting.effect">Efeito</div>
           <div class="field-inline">
-            <div id="fxSel" aria-label="Efeito"></div>
-            <button type="button" id="fxWrite" class="btn"><span data-icon="save"></span>Gravar efeito</button>
+            <div id="fxSel" data-i18n-aria-label="lighting.effect" aria-label="Efeito"></div>
+            <button type="button" id="fxWrite" class="btn"><span data-icon="save"></span><span data-i18n="lighting.write.effect">Gravar efeito</span></button>
           </div>
         </div>
         <div id="bsBright"></div>
         <div id="bsSpeed"></div>
-        <p id="bsInfo" class="hint">Clique em “Ler do teclado” para ver os valores atuais.</p>
+        <p id="bsInfo" class="hint" data-i18n="lighting.bs.info">Clique em “Ler do teclado” para ver os valores atuais.</p>
         <div class="btn-row">
-          <button type="button" id="bsWrite" class="btn primary"><span data-icon="save"></span>Gravar brilho e velocidade</button>
-          <button type="button" id="bsUndo" class="btn ghost"><span data-icon="undo-2"></span>Desfazer</button>
-          <button type="button" id="bsRestore" class="btn ghost"><span data-icon="history"></span>Restaurar original</button>
+          <button type="button" id="bsWrite" class="btn primary"><span data-icon="save"></span><span data-i18n="lighting.write.bs">Gravar brilho e velocidade</span></button>
+          <button type="button" id="bsUndo" class="btn ghost"><span data-icon="undo-2"></span><span data-i18n="common.undo">Desfazer</span></button>
+          <button type="button" id="bsRestore" class="btn ghost"><span data-icon="history"></span><span data-i18n="lighting.restore">Restaurar original</span></button>
         </div>
       </div>
 
       <div class="card" id="macPalette">
         <div class="card-head">
-          <h2><span data-icon="palette"></span>Cores do modo Mac</h2>
-          <button type="button" id="macRead" class="btn ghost sm"><span data-icon="refresh-cw"></span>Ler cores</button>
+          <h2><span data-icon="palette"></span><span data-i18n="mac.title">Cores do modo Mac</span></h2>
+          <button type="button" id="macRead" class="btn ghost sm"><span data-icon="refresh-cw"></span><span data-i18n="mac.read">Ler cores</span></button>
         </div>
-        <p class="hint">Cada quadradinho é uma das 7 cores que o Fn+PgDn percorre nesse efeito. Preto deixa a tecla apagada.</p>
+        <p class="hint" data-i18n="mac.hint">Cada quadradinho é uma das 7 cores que o Fn+PgDn percorre nesse efeito. Preto deixa a tecla apagada.</p>
         <div class="field">
-          <div class="field-label">Efeito</div>
-          <div id="macFx" aria-label="Efeito das cores"></div>
+          <div class="field-label" data-i18n="lighting.effect">Efeito</div>
+          <div id="macFx" data-i18n-aria-label="mac.fx.aria" aria-label="Efeito das cores"></div>
         </div>
         <div class="field">
-          <div class="field-label">Cores, na ordem do Fn+PgDn</div>
+          <div class="field-label" data-i18n="mac.colors.label">Cores, na ordem do Fn+PgDn</div>
           <div id="macColors" class="mac-colors"></div>
         </div>
         <div class="btn-row">
-          <button type="button" id="macWrite" class="btn primary"><span data-icon="save"></span>Gravar cores</button>
-          <button type="button" id="ltPalTest" class="btn ghost"><span data-icon="copy"></span>Copiar paleta do Windows</button>
-          <button type="button" id="ltPalRestore" class="btn ghost"><span data-icon="history"></span>Restaurar paleta</button>
+          <button type="button" id="macWrite" class="btn primary"><span data-icon="save"></span><span data-i18n="mac.write">Gravar cores</span></button>
+          <button type="button" id="ltPalTest" class="btn ghost"><span data-icon="copy"></span><span data-i18n="mac.copyWin">Copiar paleta do Windows</span></button>
+          <button type="button" id="ltPalRestore" class="btn ghost"><span data-icon="history"></span><span data-i18n="mac.restore">Restaurar paleta</span></button>
         </div>
       </div>
     </div>
@@ -167,66 +167,66 @@
   <!-- ===================== Avançado ===================== -->
   <section id="panel-adv" role="tabpanel" aria-labelledby="tab-adv" class="panel" hidden>
     <div class="card">
-      <div class="card-head"><h2><span data-icon="terminal"></span>Registro</h2></div>
-      <div id="log" class="console copyable" aria-label="Registro de comandos"></div>
+      <div class="card-head"><h2><span data-icon="terminal"></span><span data-i18n="adv.log.title">Registro</span></h2></div>
+      <div id="log" class="console copyable" data-i18n-aria-label="adv.log.aria" aria-label="Registro de comandos"></div>
     </div>
 
     <div class="card" id="lighting">
-      <div class="card-head"><h2><span data-icon="flask-conical"></span>Diagnóstico de iluminação</h2></div>
-      <p class="hint">Só lê o perfil. Clique em “Guardar” uma vez. Depois, para cada teste: mude a luz pelo próprio teclado,
+      <div class="card-head"><h2><span data-icon="flask-conical"></span><span data-i18n="diag.title">Diagnóstico de iluminação</span></h2></div>
+      <p class="hint" data-i18n="diag.hint">Só lê o perfil. Clique em “Guardar” uma vez. Depois, para cada teste: mude a luz pelo próprio teclado,
         escreva o que fez e o que viu e clique em “Comparar”. Cada comparação vira o novo ponto de partida.</p>
       <div class="btn-row">
-        <button type="button" id="ltRead" class="btn">Ler perfil</button>
-        <button type="button" id="ltSnap" class="btn">Guardar para comparar</button>
-        <button type="button" id="ltColors" class="btn" title="Só leitura: comando 88 B8">Ler tabela de cores</button>
+        <button type="button" id="ltRead" class="btn" data-i18n="diag.read">Ler perfil</button>
+        <button type="button" id="ltSnap" class="btn" data-i18n="diag.snap">Guardar para comparar</button>
+        <button type="button" id="ltColors" class="btn" data-i18n-title="diag.colors.title" title="Só leitura: comando 88 B8" data-i18n="diag.colors">Ler tabela de cores</button>
       </div>
       <div class="field-inline">
         <input id="ltNote" class="ui-input grow" type="text" autocomplete="off"
-          placeholder="O que você fez e viu (ex.: Fn+Espaço 1x, virou arco-íris)" aria-label="Anotação do teste">
-        <button type="button" id="ltDiff" class="btn">Comparar</button>
+          data-i18n-placeholder="diag.note.placeholder" placeholder="O que você fez e viu (ex.: Fn+Espaço 1x, virou arco-íris)" data-i18n-aria-label="diag.note.aria" aria-label="Anotação do teste">
+        <button type="button" id="ltDiff" class="btn" data-i18n="diag.diff">Comparar</button>
       </div>
       <pre id="ltOut" class="console short copyable">—</pre>
     </div>
 
     <div class="card">
-      <button class="disclosure" aria-controls="labBody"><span data-icon="chevron-down"></span>Laboratório de protocolo</button>
+      <button class="disclosure" aria-controls="labBody"><span data-icon="chevron-down"></span><span data-i18n="lab.title">Laboratório de protocolo</span></button>
       <div id="labBody" class="disclosure-body" hidden>
-        <h3 class="sub">Leituras</h3>
+        <h3 class="sub" data-i18n="lab.reads">Leituras</h3>
         <div class="btn-row">
-          <button type="button" id="btnPassword" class="btn" title="No 1º teste fez o teclado re-enumerar no macOS"><span data-icon="triangle-alert"></span>GetPassword (05/81)</button>
+          <button type="button" id="btnPassword" class="btn" data-i18n-title="lab.password.title" title="No 1º teste fez o teclado re-enumerar no macOS"><span data-icon="triangle-alert"></span><span data-i18n="lab.password">GetPassword (05/81)</span></button>
           <button type="button" id="btnProfile" class="btn">GetProfile (83)</button>
           <button type="button" id="btnMatrix" class="btn">GetMatrix (84)</button>
         </div>
         <div class="field">
-          <label class="field-label" for="mxAddr">Endereço da matriz (hex)</label>
+          <label class="field-label" for="mxAddr" data-i18n="lab.addr.label">Endereço da matriz (hex)</label>
           <div class="field-inline">
             <input id="mxAddr" class="ui-input mono w-sm" type="text" value="d8" maxlength="2" autocomplete="off" spellcheck="false">
-            <span class="hint">D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.</span>
+            <span class="hint" data-i18n="lab.addr.hint">D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.</span>
           </div>
         </div>
-        <pre id="dump" class="console short copyable">— nenhum dump ainda —</pre>
+        <pre id="dump" class="console short copyable" data-i18n="lab.dump.empty">— nenhum dump ainda —</pre>
 
-        <h3 class="sub">Comando bruto</h3>
+        <h3 class="sub" data-i18n="lab.raw.title">Comando bruto</h3>
         <div class="field-grid">
           <div class="field">
             <label class="field-label" for="rawId">Report ID</label>
             <input id="rawId" class="ui-input mono w-sm" type="text" inputmode="numeric" value="5" autocomplete="off">
           </div>
           <div class="field grow">
-            <label class="field-label" for="rawPayload">Payload (hex)</label>
+            <label class="field-label" for="rawPayload" data-i18n="lab.raw.payload">Payload (hex)</label>
             <input id="rawPayload" class="ui-input mono" type="text" value="83 b6 00 00 00 00" autocomplete="off" spellcheck="false">
           </div>
           <div class="field">
-            <label class="field-label" for="rawRespId">Responder com ID</label>
+            <label class="field-label" for="rawRespId" data-i18n="lab.raw.respId">Responder com ID</label>
             <input id="rawRespId" class="ui-input mono w-sm" type="text" inputmode="numeric" value="6" autocomplete="off">
           </div>
         </div>
         <div class="btn-row">
           <button type="button" id="btnRawSend" class="btn">SendFeature</button>
-          <button type="button" id="btnRawGet" class="btn">GetFeature (resposta)</button>
+          <button type="button" id="btnRawGet" class="btn" data-i18n="lab.raw.get">GetFeature (resposta)</button>
         </div>
 
-        <h3 class="sub">Coleções HID</h3>
+        <h3 class="sub" data-i18n="lab.collections">Coleções HID</h3>
         <pre id="collections" class="console short copyable">—</pre>
       </div>
     </div>
@@ -235,30 +235,32 @@
   <!-- ===================== Backup ===================== -->
   <section id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" class="panel" hidden>
     <div class="card">
-      <div class="card-head"><h2><span data-icon="archive"></span>Backups</h2></div>
-      <p class="hint">Antes de cada gravação, o app guarda aqui o estado anterior do que vai mudar. Os backups ficam só neste
+      <div class="card-head"><h2><span data-icon="archive"></span><span data-i18n="backup.title">Backups</span></h2></div>
+      <p class="hint" data-i18n="backup.hint">Antes de cada gravação, o app guarda aqui o estado anterior do que vai mudar. Os backups ficam só neste
         navegador: limpar os dados do site apaga a lista.</p>
       <div class="field-inline">
         <input id="bkName" class="ui-input grow" type="text" autocomplete="off" maxlength="80"
-          placeholder="Nome (opcional)" aria-label="Nome do backup">
-        <button type="button" id="bkNew" class="btn primary"><span data-icon="save"></span>Fazer backup agora</button>
+          data-i18n-placeholder="backup.name.placeholder" placeholder="Nome (opcional)" data-i18n-aria-label="backup.name.aria" aria-label="Nome do backup">
+        <button type="button" id="bkNew" class="btn primary"><span data-icon="save"></span><span data-i18n="backup.new">Fazer backup agora</span></button>
       </div>
-      <p class="hint">O backup manual lê do teclado as teclas dos modos Mac e Windows, as cores e o efeito com brilho e velocidade.</p>
-      <ul id="bkList" class="bk-list" aria-label="Backups salvos"></ul>
+      <p class="hint" data-i18n="backup.manualHint">O backup manual lê do teclado as teclas dos modos Mac e Windows, as cores e o efeito com brilho e velocidade.</p>
+      <ul id="bkList" class="bk-list" data-i18n-aria-label="backup.list.aria" aria-label="Backups salvos"></ul>
     </div>
   </section>
 </main>
 
-<footer class="foot">
+<footer class="foot" data-i18n="footer">
   Projeto independente, sem ligação com a Redragon. Funciona em navegadores baseados em Chromium (Chrome, Edge, Brave, Opera e outros), via WebHID.
 </footer>
 
-<script src="icons.js?v=38"></script>
-<script src="ui.js?v=38"></script>
-<script src="layout.js?v=38"></script>
-<script src="protocol.js?v=38"></script>
-<script src="keycodes.js?v=38"></script>
-<script src="lighting.js?v=38"></script>
-<script src="app.js?v=38"></script>
+<script src="icons.js?v=39"></script>
+<script src="i18n/pt-BR.js?v=39"></script>
+<script src="i18n.js?v=39"></script>
+<script src="ui.js?v=39"></script>
+<script src="layout.js?v=39"></script>
+<script src="protocol.js?v=39"></script>
+<script src="keycodes.js?v=39"></script>
+<script src="lighting.js?v=39"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
