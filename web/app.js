@@ -159,6 +159,22 @@
       else log("GetFeature: sem resposta/erro.", "err");
     }),
     btnWrUndo: () => act(restoreBackup),
+    ltRead: () => act(async () => showProfile(await readProfileData())),
+    ltSnap: () => act(async () => {
+      profileSnap = await readProfileData();
+      showProfile(profileSnap);
+      log("Perfil guardado. Mude a iluminação pelo teclado e clique em “Comparar”.");
+    }),
+    ltDiff: () => act(async () => {
+      if (!profileSnap) return log("Clique em “Guardar para comparar” primeiro.", "err");
+      const now = await readProfileData();
+      const diffs = [];
+      for (let i = 0; i < Math.max(now.length, profileSnap.length); i++)
+        if (now[i] !== profileSnap[i]) diffs.push(i);
+      const lines = diffs.map(i => `0x${i.toString(16).padStart(3, "0")}  ${hx(profileSnap[i])} → ${hx(now[i])}   ${describeOffset(i)}`);
+      showProfile(now, `Diferenças em relação ao guardado (${diffs.length} bytes):\n` + (lines.join("\n") || "nenhuma") + "\n\n");
+      log(`Comparação: ${diffs.length} bytes mudaram.`);
+    }),
     rmApply: () => act(applyChoice),
     rmResetKey: () => act(resetKey),
   };
@@ -266,6 +282,30 @@
     if (!b || b.data.length !== 0x400) return log(`Não há cópia original do modo ${MODES[modeAddr]} neste navegador.`, "err");
     if (!confirm(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?`)) return;
     await writeAndVerify(b.data, `restauração completa do modo ${MODES[modeAddr]}`, modeAddr);
+  }
+
+  // ---------- iluminação (leitura) ----------
+  const { parseProfile, effectName, describeOffset } = window.K652Lighting;
+  let profileSnap = null;
+  const hx = b => b === undefined ? "--" : b.toString(16).padStart(2, "0");
+
+  async function readProfileData() {
+    const r = await dev.getProfile();
+    if (!r || !r.echoOk) throw new Error("GetProfile sem resposta válida.");
+    return r.raw.slice(7); // perfil inteiro (8 globais + 2 × 0x7B), não só os 0x88 do app original
+  }
+
+  function showProfile(data, prefix = "") {
+    const { global, profiles } = parseProfile(data);
+    let out = prefix + `Globais: ${global.map(hx).join(" ")}\n`;
+    profiles.forEach((p, n) => {
+      out += `\nPerfil ${n + 1}: efeito ${p.effect} = ${effectName(p.effect)}` +
+        (p.custom ? " · modo personalizado" : "") + ` · grupo ${p.group}` + (p.marker ? "" : " · SEM marcador 5a a5") +
+        (p.brightness !== null ? `\n  parâmetros do efeito atual: cor ${p.color} · direção ${p.direction} · brilho ${p.brightness} · velocidade ${p.speed}` : "") + "\n";
+      for (let i = 0; i < p.raw.length; i += 16)
+        out += `  ${i.toString(16).padStart(2, "0")}  ${[...p.raw.slice(i, i + 16)].map(hx).join(" ")}\n`;
+    });
+    $("ltOut").textContent = out;
   }
 
   // ---------- remapeador ----------

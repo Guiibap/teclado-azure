@@ -216,3 +216,20 @@ Fn com nome pelos keycaps: Fn+1..4 = 0e 0c..0f = BT1, BT2, BT3, 2.4G.
 Mesmo layout de 0x400 nas duas matrizes (base 132 + FnBase 48 + FnLayer 48). Em D8 as tabelas FnBase/FnLayer
 das F-keys aparecem invertidas em relação a D4 (mídia é a função normal). A remapeação da `/?` falhou porque
 foi gravada em D4 com o teclado em modo Mac.
+
+## Iluminação — estrutura do perfil (2026-10-21, em andamento)
+
+`sub_40d240` monta 0x40 bytes por perfil para o SetProfile:
+`[4]` personalizado (1 se o efeito == GaoshouIndex) · `[5]` efeito (1º campo de LedOptN) · `[6]` 0x20 + grupo ·
+`[0x14..0x15]` ff ff · `[0x16 + 2·(efeito−1)]` 2 bytes por efeito (A: cor | direção<<4; B: brilho | velocidade<<4) ·
+`[0x3e..0x3f]` 5a a5.
+
+Leitura (GetProfile, resp[7..] = 254 bytes) = 8 bytes globais + 2 × 0x7B. Os primeiros 0x40 de cada perfil batem
+com o formato acima; os 0x3B restantes ainda não foram decifrados. `sub_445300` (troca de efeito no app original)
+faz GetProfile → muda bytes [12] e [13] (= perfil 1 `[4]` e `[5]`) → SetProfile com os 0x88 bytes lidos.
+
+Efeitos (text.xml tc_led_mode1..22 ↔ cfg LedOpt1..22): 1 Fixo, 2 Respirar, 3 Arco-íris, 4 Flash que some,
+5 Gotas, 6 Roda arco-íris, 7 Ondas, 8 Estrelas, 9 Sombra, 10 Cobra, 11 Fluxo neon, 12 Reação, 13 Onda senoidal,
+14 Varredura, 15 Moinho, 16 Cascata, 17 Florescer, 18 Tempestade, 19 Colisão, 20 Perfeito, 21 Personalizado, 22 OFF.
+
+Ferramenta de leitura/comparação no app (painel "Iluminação — leitura") para mapear o resto pelos atalhos Fn.

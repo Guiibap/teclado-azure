@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 <header>
@@ -63,6 +63,18 @@
       </details>
     </div>
 
+    <div class="lab-group" id="lighting">
+      <h3>Iluminação — leitura</h3>
+      <div class="hint">Só lê o perfil. Para descobrir o formato: clique em “Guardar”, mude a luz pelo próprio
+        teclado (Fn+Espaço, Fn+setas…) e clique em “Comparar”.</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="ltRead">Ler perfil</button>
+        <button id="ltSnap">Guardar para comparar</button>
+        <button id="ltDiff">Comparar com o guardado</button>
+      </div>
+      <pre id="ltOut" class="dump copyable">—</pre>
+    </div>
+
     <details id="labDetails">
     <summary><h2>Laboratório de protocolo</h2></summary>
     <div class="lab-group">
@@ -103,9 +115,10 @@
 </main>
 
 
-<script src="layout.js?v=9"></script>
-<script src="protocol.js?v=9"></script>
-<script src="keycodes.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="layout.js?v=10"></script>
+<script src="protocol.js?v=10"></script>
+<script src="keycodes.js?v=10"></script>
+<script src="lighting.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
