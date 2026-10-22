@@ -215,6 +215,28 @@
       if (await writePalette(next, "cópia da paleta do Windows para o Mac"))
         log("No modo Mac, Fixo + Fn+PgDn deve passar pelas mesmas cores do Windows (branco, azul, verde…).", "note");
     }),
+    macRead: () => act(async () => {
+      const pal = await readPalette();
+      const fx = macEffect();
+      setMacColors(pal.slice(macRow(fx), macRow(fx) + 0x15));
+      log(`Cores do efeito ${fx} (${effectName(fx)}) no modo Mac, 0x${macRow(fx).toString(16)}: ` +
+        hex(pal.slice(macRow(fx), macRow(fx) + 0x15)));
+    }),
+    macWrite: () => act(async () => {
+      const cur = await readPalette();
+      if (!loadPalBackup()) savePalBackup(cur);
+      const fx = macEffect(), off = macRow(fx), row = getMacColors();
+      const old = cur.slice(off, off + 0x15);
+      if (row.every((b, i) => b === old[i])) return log("As cores escolhidas já são as gravadas. Nada a fazer.");
+      const next = cur.slice();
+      next.set(row, off);
+      log(`Prévia (efeito ${fx}, 0x${off.toString(16)}–0x${(off + 0x14).toString(16)}):\n  antes  ${hex(old)}\n  depois ${hex(row)}`, "note");
+      if (!confirm(`Gravar as 7 cores do efeito ${fx} (${effectName(fx)}) no modo Mac?\n\n` +
+        `Só os 21 bytes em 0x${off.toString(16)}–0x${(off + 0x14).toString(16)} mudam; o resto da tabela fica igual.\n` +
+        `Para desfazer, grave as cores antigas (estão no log) ou use “Restaurar paleta”.`)) return log("Cancelado, nada foi gravado.");
+      if (await writePalette(next, `cores do efeito ${fx} no Mac`))
+        log("No modo Mac, nesse efeito, Fn+PgDn passa pelas 7 cores na ordem dos quadradinhos.", "note");
+    }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
       if (!b) return log("Não há backup da paleta neste navegador.", "err");
@@ -361,6 +383,20 @@
   const PAL_MAC_FROM = 0x1e3;
   const PAL_BACKUP = "k652.paletteBackup";
   const PAL_MAC_BASE = 0x1f8; // linha 0 da paleta do Mac (Fixo = linha 1 em 0x20d)
+
+  // ---------- cores do modo Mac: uma linha de 7 × RGB por efeito ----------
+  const macRow = fx => PAL_MAC_BASE + 0x15 * fx;
+  const macEffect = () => parseInt($("macFx").value, 10);
+  const toHex = (r, g, b) => "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("");
+  function setMacColors(row) {
+    document.querySelectorAll("#macColors input").forEach((el, i) => (el.value = toHex(row[i * 3], row[i * 3 + 1], row[i * 3 + 2])));
+  }
+  function getMacColors() {
+    const row = new Uint8Array(0x15);
+    document.querySelectorAll("#macColors input").forEach((el, i) =>
+      [1, 3, 5].forEach((p, c) => (row[i * 3 + c] = parseInt(el.value.slice(p, p + 2), 16))));
+    return row;
+  }
 
   async function readPalette() {
     const r = await dev.readTable(0x88, 0xb8);
@@ -683,6 +719,10 @@
   setupCopyBoxes();
   renderKeyboard();
   for (const [id, fn] of Object.entries(actions)) $(id).addEventListener("click", fn);
+  K652Lighting.LED_EFFECTS.forEach((name, n) => { if (n) $("macFx").add(new Option(`${n} ${name}`, n)); });
+  $("macColors").innerHTML = Array.from({ length: 7 }, (_, i) =>
+    `<label>${i + 1}<input type="color" value="#000000" title="Cor ${i + 1} (Fn+PgDn)"></label>`).join("");
+  $("macFx").addEventListener("change", () => dev.connected && actions.macRead());
   $("ltNote").addEventListener("keydown", e => { if (e.key === "Enter") actions.ltDiff(); });
   $("chkShowMatrix").addEventListener("change", () => showMatrixValues());
   document.querySelectorAll("#modeSeg button").forEach(b =>

@@ -326,3 +326,5 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
 - Resultado do teste 2: o Fixo do Mac ficou azul nas 7 cores, ou seja, linha 2 a partir de 0x1e3 = **0x20d**. Como o Fixo é
   o efeito 1, **a paleta do Mac começa em 0x1f8** (= 24 × 0x15), com o mesmo formato da do Windows: efeito n em
   0x1f8 + 0x15·n, e as 23 linhas vão até 0x3da. Ficam livres 0x1e3–0x1f7 (uma linha) e 0x3db–0x3ff.
+- Cópia da paleta do Windows para 0x1f8 gravada e testada (2026-10-22): no Mac, o Fixo passou a ciclar pelas mesmas cores
+  do Windows. Seletor "Cores do modo Mac" no app: lê e grava só a linha 0x1f8 + 0x15·efeito (7 × RGB).

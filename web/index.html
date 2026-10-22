@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
 <header>
@@ -61,6 +61,18 @@
         <div id="wrBackupInfo" class="hint">Sem backup salvo ainda.</div>
         <div class="btn-row"><button id="btnWrUndo">Restaurar o modo selecionado inteiro</button></div>
       </details>
+    </div>
+
+    <div class="lab-group" id="macPalette">
+      <h3>Cores do modo Mac</h3>
+      <div class="hint">Escolha o efeito, clique em “Ler cores” e mude os quadradinhos. Cada um é uma das 7 cores que o
+        Fn+PgDn percorre nesse efeito. “Gravar” mostra os bytes, pede confirmação e confere depois.</div>
+      <div class="btn-row" style="margin-top:8px">
+        <select id="macFx" aria-label="Efeito"></select>
+        <button id="macRead">Ler cores</button>
+        <button id="macWrite" class="primary">Gravar cores</button>
+      </div>
+      <div id="macColors" class="mac-colors"></div>
     </div>
 
     <div class="lab-group" id="lighting">
@@ -125,10 +137,10 @@
 </main>
 
 
-<script src="layout.js?v=20"></script>
-<script src="protocol.js?v=20"></script>
-<script src="keycodes.js?v=20"></script>
-<script src="lighting.js?v=20"></script>
-<script src="app.js?v=20"></script>
+<script src="layout.js?v=21"></script>
+<script src="protocol.js?v=21"></script>
+<script src="keycodes.js?v=21"></script>
+<script src="lighting.js?v=21"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>
