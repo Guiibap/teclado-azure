@@ -339,3 +339,11 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
   em `5a a5` em [0x3e..0x3f] (sub_40d240), e sem o marcador o firmware descarta e carrega o padrão.
 - Correção: bloco = leitura[0..0x3d] (globais [4..6] + parâmetros dos efeitos 1..20) + `5a a5`. O backup do perfil de
   antes do teste ficou no navegador ("Restaurar original").
+- Teste 22/10 00:43 (bloco = leitura[0..0x3d] + `5a a5`, 0x88 bytes): **mesma falha**, os dois blocos voltaram ao padrão.
+  A hipótese do marcador em 0x3e estava errada.
+- Releitura do asm (objdump): `sub_4455d0` monta exatamente `03 B6 00 00 00 00 00` + 0x88 bytes, igual ao app web.
+  O ApplySetting zera um buffer de 0x88, faz GetProfile nele, põe o byte global [0] e chama `sub_40d240` em buf+8
+  (só o 1º bloco, 0x40 bytes). Ou seja, o app v1.6.6 fala com um firmware de **1 perfil de 0x40**. Este teclado
+  devolve 8 + 2 × 0x7B (0xFE), com `5a a5` no fim de cada bloco ([0x79..0x7a]); mandando só 0x88, o fim dos blocos
+  chega zerado. Nova hipótese: a escrita tem que ter o mesmo formato da leitura (0xFE bytes).
+- App ajustado: grava os 0xFE bytes lidos, trocando só o byte desejado, e se recusa a gravar se faltar algum marcador.

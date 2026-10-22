@@ -457,10 +457,10 @@
   }
 
   // ---------- gravação do perfil (SetProfile 03 B6) ----------
-  // Leitura = 8 globais + 2 blocos de 0x7B. Escrita (sub_40d240, "Cfg(Save-Pro1)") = 8 globais + 2 × 0x40, e cada
-  // bloco de 0x40 TERMINA em 5a a5 ([0x3e..0x3f]); cabem os parâmetros dos efeitos 1..20. Sem o marcador o
-  // firmware descarta tudo e volta o perfil ao padrão (efeito 0x0b, todos 07 44): foi o que aconteceu em 21/10 e
-  // em 22/10 (0x40 bytes crus da leitura, que terminam em 07 44).
+  // O app original (v1.6.6) grava 0x88 bytes = 8 globais + 1 bloco de 0x40 terminado em 5a a5 (sub_40d240), o
+  // formato de um firmware antigo de 1 perfil. Este firmware lê 8 globais + 2 blocos de 0x7B, cada um terminado em
+  // 5a a5 em [0x79..0x7a]. As 3 tentativas com 0x88 bytes (21/10 e 22/10) deixaram o fim dos blocos zerado e o
+  // teclado voltou a luz ao padrão (efeito 0x0b, todos 07 44). Agora grava de volta exatamente o formato lido.
   let bsBefore = null;
   function loadProfileBackup() {
     try { const b = JSON.parse(localStorage.getItem(PROFILE_BACKUP)); return b && { ts: b.ts, data: new Uint8Array(b.data) }; }
@@ -468,13 +468,12 @@
   }
   const clampBs = v => Math.max(0, Math.min(4, parseInt(v, 10) || 0));
   const PROFILE_BACKUP = "k652.profileBackup";
+  const PROFILE_LEN = 8 + 2 * PROFILE_STRIDE; // 0xFE
   function packProfile(data) {
-    const out = new Uint8Array(0x88);
-    out.set(data.slice(0, 8), 0);
-    for (let n = 0; n < 2; n++) {
-      out.set(data.slice(8 + n * PROFILE_STRIDE, 8 + n * PROFILE_STRIDE + 0x3e), 8 + n * 0x40);
-      out.set([0x5a, 0xa5], 8 + n * 0x40 + 0x3e);
-    }
+    const out = data.slice(0, PROFILE_LEN);
+    if (out.length !== PROFILE_LEN) throw new Error(`Perfil lido com ${out.length} bytes, esperado ${PROFILE_LEN}. Nada foi gravado.`);
+    const bad = [6, ...[0, 1].map(n => 8 + n * PROFILE_STRIDE + 0x79)].filter(i => out[i] !== 0x5a || out[i + 1] !== 0xa5);
+    if (bad.length) throw new Error(`Faltam marcadores 5a a5 em ${bad.map(i => "0x" + i.toString(16)).join(", ")}. Nada foi gravado.`);
     return out;
   }
   function showBs(p) {
@@ -484,21 +483,19 @@
     try { if (!localStorage.getItem(PROFILE_BACKUP))
       localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...before] })); } catch {}
     const changes = [...want].map((b, i) => b !== before[i] ? i : -1).filter(i => i >= 0);
-    if (changes.some(i => (i - 8) % PROFILE_STRIDE >= 0x3e))
-      throw new Error("A mudança cai fora dos 0x3e bytes que a escrita leva. Nada foi gravado.");
     const pkt = packProfile(want);
-    log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, 0x88 bytes:\n` +
-      Array.from({ length: 0x88 / 16 + 1 }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
+    log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, ${pkt.length} bytes (formato da leitura):\n` +
+      Array.from({ length: Math.ceil(pkt.length / 16) }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
       "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
-    if (!confirm(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: é a primeira gravação de perfil neste formato ` +
-      `com o marcador 5a a5 (sem ele o teclado volta a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
+    if (!confirm(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
+      `o devolve (as tentativas anteriores, no formato curto do app do Windows, voltaram a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
       `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`))
       return log("Cancelado, nada foi gravado.");
     log(`Gravando perfil: ${label} (03 B6)…`, "tx");
     if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
     await sleep(300);
     const back = await readProfileData();
-    const diff = [...back].map((b, i) => b !== want[i] ? i : -1).filter(i => i >= 0);
+    const diff = [...back.slice(0, PROFILE_LEN)].map((b, i) => b !== want[i] ? i : -1).filter(i => i >= 0);
     if (!diff.length) bsBefore = before; // só vira ponto de desfazer se a gravação bateu
     if (!diff.length) log("OK: perfil gravado e conferido, só mudou o que devia.");
     else log(`Releitura difere do esperado em ${diff.length} bytes:\n` + diff.map(i =>

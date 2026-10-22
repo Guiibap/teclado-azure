@@ -260,10 +260,11 @@ class K652Device {
     return buf;
   }
 
-  // SetProfile (sub_4455d0): [03][ProAddr][00×5][dados 0x88] — dados em +7 (asm: memcpy em buf+0x17,
-  // cabeçalho em buf+0x10), mesmo offset em que o GetProfile devolve
+  // SetProfile (sub_4455d0): [03][ProAddr][00×5][dados] — dados em +7 (asm: memcpy em buf+0x17,
+  // cabeçalho em buf+0x10), mesmo offset em que o GetProfile devolve. O app original manda 0x88 bytes (firmware
+  // antigo, 1 perfil); este firmware lê 8 + 2 × 0x7B, então aceita qualquer tamanho até a área de dados.
   async setProfile(profileData, addr = ADDR.PRO) {
-    if (profileData.length !== 0x88) throw new Error(`Perfil deve ter 0x88 bytes (veio ${profileData.length}).`);
+    if (profileData.length > SIZES.MAIN_FEATURE - 7) throw new Error(`Perfil grande demais (${profileData.length} bytes).`);
     const buf = this._writeBuf(new Uint8Array([CMD.SET_PROFILE, addr, 0, 0, 0, 0, 0]), profileData, 7);
     const ok = await this.sendCommand(buf);
     if (ok) await sleep(20); // retry gap do original
