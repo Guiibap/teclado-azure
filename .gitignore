@@ -1,0 +1,8 @@
+.DS_Store
+
+# Binários do fabricante (instalador e executáveis extraídos): ficam só locais
+windows-binary/
+extracted/**/*.exe
+extracted/**/*.dll
+extracted/**/*.ico
+extracted/app/skins/
