@@ -270,3 +270,31 @@ Leitura (resp[7..], 254 B) = 8 globais + 2 blocos de 0x7B.
   linhas de 0x15 = 21 bytes = 7 cores × RGB). Neste teclado essa paleta parece estar zerada (preta).
 - cfg LedOpt `hw,effect,speed,light,dir,random,color`: os efeitos 3, 6, 15, 16 e 17 não aceitam cor.
 - Próximo: ler a tabela com 88 B8 (botão "Ler tabela de cores").
+
+## Perfil exportado `.bk` do app Windows (Profile1.bk, branco fixo, 2026-10-22)
+
+28748 bytes, parece um dump direto da struct de perfil do app (os offsets batem com `sub_40d240`).
+
+- 0x000: cabeçalho `95 77 fb fc c8 73 fe 00`; 0x210: nome "Profile1" em UTF-16LE.
+- 0x260..0x33e0: 132 registros de 0x60 bytes, um por posição da matriz (retângulo na tela, código, `ff ff ff ff`, índice).
+- 0x33e4: efeito selecionado, base 0 (0 = Fixed_on). `sub_40d240` lê `edi[0x33e4]`.
+- 0x33ec: 24 registros de efeito com 0x30 bytes cada (efeito 1 em diante):
+
+  | +off | campo | branco fixo (reg. 0) | demais |
+  |---|---|---|---|
+  | 0x00 | velocidade (u32) | 4 | 4 |
+  | 0x04 | brilho (u32) | 1 | 4 |
+  | 0x08 | direção (u32) | 0 | 0 |
+  | 0x0c | índice da cor na paleta (u32) → nibble baixo do byte A | 0 | 0 |
+  | 0x10 | paleta: 7 cores × `RR GG BB 00` | **ffffff**, 0000ff, 00ff00, ffff00, ff00ff, 00ffff, ffffff | **ff0000**, 0000ff, … |
+  | 0x2c | aleatório/"RGB" (u32): 1 → nibble = cor colorida (7) | 0 | 1 |
+
+  Os registros 20..23 estão zerados (velocidade/brilho 0).
+- 0x386c: `00 00 01 01 01 01 01` (lido por `sub_40d240` como `edi[0x386c]` → byte [2] do bloco, "grupo").
+- 0x386c em diante: valores por tecla (`ff`) — provavelmente as cores do modo Personalizado.
+
+**Conclusão:** o perfil do teclado só guarda o *índice* da cor (0..6) ou 7 = colorido. A cor real vem de uma
+paleta de 7 cores **por efeito** (7 × RGB = 0x15 bytes por efeito), que o app manda à parte — quase certamente
+pela tabela RGB (`08 B8`, SetLedRgbTab). Quando o usuário escolhe uma cor no app, ele escreve essa cor no slot 0
+da paleta do efeito e põe o índice 0. Isso explica o teste: Fn+PgDn levou o nibble a 0..6 e o teclado apagou,
+porque a paleta gravada no teclado deve estar zerada. Próximo passo: ler `88 B8` e ver se aparecem linhas de 0x15.
