@@ -318,3 +318,8 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
 - Teste (botão “Preencher 2ª metade”): grava `ff 00 00` repetido de 0x1e3 até 0x3ff, sem mexer na 1ª metade.
   No Mac, se a cor sair vermelha, a paleta do Mac começa num offset com resto 0 na divisão por 3; azul = resto 1;
   verde = resto 2; apagado = a paleta do Mac não está aqui.
+- Resultado do teste 1: no Mac, as cores 0..6 do Fixo ficaram todas vermelhas (antes, apagadas). **A paleta do Mac fica
+  na 2ª metade** e começa num offset múltiplo de 3. Candidatos: 0x1e3 + 0x15·k.
+- Teste 2: a linha k a partir de 0x1e3 recebe a cor k (0 vermelho, 1 verde, 2 azul, 3 amarelo, 4 magenta, 5 ciano,
+  6 branco, 7+ laranja). Se o Fixo do Mac sair verde, as linhas espelham as do Windows (Mac linha 0 em 0x1e3,
+  efeito n em 0x1e3 + 0x15·n). Se as cores do ciclo mudarem no meio, o início não cai numa linha de 0x15.

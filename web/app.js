@@ -199,18 +199,23 @@
     ltPalTest: () => act(async () => {
       const cur = await readPalette();
       if (!loadPalBackup()) savePalBackup(cur);
+      // teste 1 (ff 00 00 repetido) deu vermelho no Mac: a paleta do Mac começa em offset múltiplo de 3.
+      // Teste 2: cada linha de 0x15 a partir de PAL_MAC_FROM ganha uma cor; a cor do Fixo diz qual linha ele usa.
       const next = cur.slice();
-      for (let i = PAL_MAC_FROM; i < 0x400; i++) next[i] = i % 3 === 0 ? 0xff : 0x00;
+      for (let i = PAL_MAC_FROM; i < 0x400; i++) {
+        const k = Math.floor((i - PAL_MAC_FROM) / 0x15);
+        next[i] = PAL_ROW_COLORS[Math.min(k, PAL_ROW_COLORS.length - 1)][(i - PAL_MAC_FROM) % 3];
+      }
       const changed = [...next].filter((b, i) => b !== cur[i]).length;
       const msg = `Gravar na tabela de cores (08 B8)?\n\n` +
         `• 0x000–0x${(PAL_MAC_FROM - 1).toString(16)} (paleta do Windows): fica igual.\n` +
-        `• 0x${PAL_MAC_FROM.toString(16)}–0x3ff: vira o padrão “ff 00 00” repetido (${changed} bytes mudam).\n\n` +
+        `• 0x${PAL_MAC_FROM.toString(16)}–0x3ff: uma cor por linha de 21 bytes (${changed} bytes mudam).\n\n` +
         `Backup da tabela atual salvo neste navegador; “Restaurar paleta” desfaz.`;
       log(`Prévia da paleta de teste: cabeçalho 08 b8 00 40 00 00 00, dados 0x${PAL_MAC_FROM.toString(16)}..: ` +
         hex(next.slice(PAL_MAC_FROM, PAL_MAC_FROM + 24)) + " …", "note");
       if (!confirm(msg)) return log("Cancelado, nada foi gravado.");
       if (await writePalette(next, "paleta de teste na 2ª metade"))
-        log("Agora, no modo Mac, deixe no Fixo e aperte Fn+PgDn. Vermelho, azul ou verde? (Se continuar apagado, desconecte e conecte o USB e tente de novo.)", "note");
+        log("Agora, no modo Mac, deixe no Fixo e aperte Fn+PgDn, anotando a cor de cada toque.", "note");
     }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
@@ -357,6 +362,9 @@
   // a paleta do modo Mac, onde as cores 0..6 saem apagadas.
   const PAL_MAC_FROM = 0x1e3;
   const PAL_BACKUP = "k652.paletteBackup";
+  // linha 0..6 a partir de PAL_MAC_FROM: vermelho, verde, azul, amarelo, magenta, ciano, branco; da 7 em diante, laranja
+  const PAL_ROW_COLORS = [[0xff, 0, 0], [0, 0xff, 0], [0, 0, 0xff], [0xff, 0xff, 0], [0xff, 0, 0xff], [0, 0xff, 0xff],
+    [0xff, 0xff, 0xff], [0xff, 0x60, 0]];
 
   async function readPalette() {
     const r = await dev.readTable(0x88, 0xb8);
