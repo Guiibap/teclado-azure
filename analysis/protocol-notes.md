@@ -333,3 +333,9 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
 - O app lê o perfil, muda só o byte B do efeito atual no bloco ativo e grava com SetProfile no formato de escrita
   do app original: 8 globais + os primeiros 0x40 bytes de cada bloco (= 0x88). Depois relê e lista qualquer byte
   que não bata com o esperado. Ainda não testado no teclado.
+- Teste 22/10 00:39: gravei globais + 0x40 bytes crus de cada bloco (bloco terminando em `07 44`). O teclado voltou
+  **os dois blocos ao padrão**: efeito 0x0b, todos os parâmetros `07 44`, efeito 0 e 16 = `ff ff`. O "Desfazer" no
+  mesmo formato deu o mesmo resultado. Igual à falha de 21/10. Causa provável: o bloco de escrita tem que terminar
+  em `5a a5` em [0x3e..0x3f] (sub_40d240), e sem o marcador o firmware descarta e carrega o padrão.
+- Correção: bloco = leitura[0..0x3d] (globais [4..6] + parâmetros dos efeitos 1..20) + `5a a5`. O backup do perfil de
+  antes do teste ficou no navegador ("Restaurar original").

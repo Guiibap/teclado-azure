@@ -258,6 +258,11 @@
       if (!bsBefore) return log("Nada para desfazer nesta sessão.", "err");
       await writeProfile(await readProfileData(), bsBefore, "desfazer a última gravação do perfil");
     }),
+    bsRestore: () => act(async () => {
+      const b = loadProfileBackup();
+      if (!b) return log("Não há backup do perfil neste navegador.", "err");
+      await writeProfile(await readProfileData(), b.data, `restaurar o perfil salvo em ${b.ts}`);
+    }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
       if (!b) return log("Não há backup da paleta neste navegador.", "err");
@@ -452,16 +457,24 @@
   }
 
   // ---------- gravação do perfil (SetProfile 03 B6) ----------
-  // Leitura = 8 globais + 2 blocos de 0x7B; o app original monta a escrita com 0x40 bytes por bloco (sub_40d240,
-  // "Cfg(Save-Pro1)" 0x40) = 0x88. Em 2026-10-21 reenviar os 0x88 primeiros bytes da leitura bagunçou o perfil,
-  // então aqui vai o formato de escrita: globais + 0x40 de cada bloco. Experimental: confere tudo na releitura.
+  // Leitura = 8 globais + 2 blocos de 0x7B. Escrita (sub_40d240, "Cfg(Save-Pro1)") = 8 globais + 2 × 0x40, e cada
+  // bloco de 0x40 TERMINA em 5a a5 ([0x3e..0x3f]); cabem os parâmetros dos efeitos 1..20. Sem o marcador o
+  // firmware descarta tudo e volta o perfil ao padrão (efeito 0x0b, todos 07 44): foi o que aconteceu em 21/10 e
+  // em 22/10 (0x40 bytes crus da leitura, que terminam em 07 44).
   let bsBefore = null;
+  function loadProfileBackup() {
+    try { const b = JSON.parse(localStorage.getItem(PROFILE_BACKUP)); return b && { ts: b.ts, data: new Uint8Array(b.data) }; }
+    catch { return null; }
+  }
   const clampBs = v => Math.max(0, Math.min(4, parseInt(v, 10) || 0));
   const PROFILE_BACKUP = "k652.profileBackup";
   function packProfile(data) {
     const out = new Uint8Array(0x88);
     out.set(data.slice(0, 8), 0);
-    for (let n = 0; n < 2; n++) out.set(data.slice(8 + n * PROFILE_STRIDE, 8 + n * PROFILE_STRIDE + 0x40), 8 + n * 0x40);
+    for (let n = 0; n < 2; n++) {
+      out.set(data.slice(8 + n * PROFILE_STRIDE, 8 + n * PROFILE_STRIDE + 0x3e), 8 + n * 0x40);
+      out.set([0x5a, 0xa5], 8 + n * 0x40 + 0x3e);
+    }
     return out;
   }
   function showBs(p) {
@@ -471,22 +484,22 @@
     try { if (!localStorage.getItem(PROFILE_BACKUP))
       localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...before] })); } catch {}
     const changes = [...want].map((b, i) => b !== before[i] ? i : -1).filter(i => i >= 0);
-    if (changes.some(i => (i - 8) % PROFILE_STRIDE >= 0x40))
-      throw new Error("A mudança cai fora dos 0x40 bytes que a escrita leva. Nada foi gravado.");
+    if (changes.some(i => (i - 8) % PROFILE_STRIDE >= 0x3e))
+      throw new Error("A mudança cai fora dos 0x3e bytes que a escrita leva. Nada foi gravado.");
     const pkt = packProfile(want);
     log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, 0x88 bytes:\n` +
       Array.from({ length: 0x88 / 16 + 1 }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
       "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
     if (!confirm(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: é a primeira gravação de perfil neste formato ` +
-      `(a tentativa de 21/10 em outro formato bagunçou a luz). O app relê e mostra tudo o que mudou; ` +
-      `“Desfazer” regrava o perfil anterior. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`))
+      `com o marcador 5a a5 (sem ele o teclado volta a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
+      `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`))
       return log("Cancelado, nada foi gravado.");
     log(`Gravando perfil: ${label} (03 B6)…`, "tx");
     if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
     await sleep(300);
     const back = await readProfileData();
     const diff = [...back].map((b, i) => b !== want[i] ? i : -1).filter(i => i >= 0);
-    bsBefore = before;
+    if (!diff.length) bsBefore = before; // só vira ponto de desfazer se a gravação bateu
     if (!diff.length) log("OK: perfil gravado e conferido, só mudou o que devia.");
     else log(`Releitura difere do esperado em ${diff.length} bytes:\n` + diff.map(i =>
       `  0x${i.toString(16).padStart(3, "0")}  esperado ${hx(want[i])}, veio ${hx(back[i])}   ${describeOffset(i)}`).join("\n") +
