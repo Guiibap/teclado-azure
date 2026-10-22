@@ -141,7 +141,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 24px 48px; display: flex
 
 .kb-frame {
   position: relative; border-radius: 20px; padding: 28px;
-  background: radial-gradient(120% 140% at 50% 0%, #121315 0%, var(--surface) 60%);
+  background: radial-gradient(120% 140% at 50% 0%, #0f1012 0%, var(--canvas) 60%);
   border: 1px solid var(--hairline); overflow: hidden; isolation: isolate;
 }
 /* o único gradiente forte da página: a luz RGB "vazando" por baixo do teclado */
@@ -157,20 +157,21 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 24px 48px; display: flex
 
 .key {
   position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  background: linear-gradient(180deg, #161718 0%, #0f1011 100%);
-  border: 1px solid var(--hairline); border-radius: var(--r-sm);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 -2px 0 rgba(0, 0, 0, .5);
-  color: var(--mute); font-size: 10px; font-weight: 500; line-height: 1.15;
+  /* teclas dois degraus acima do fundo e contorno mais forte, para o desenho ler bem no escuro */
+  background: linear-gradient(180deg, #222326 0%, #191a1c 100%);
+  border: 1px solid #383b3e; border-radius: var(--r-sm);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -2px 0 rgba(0, 0, 0, .45);
+  color: var(--body); font-size: 10px; font-weight: 500; line-height: 1.15;
   cursor: pointer; user-select: none; overflow: hidden; padding: 0 3px;
   transition: background .12s, border-color .12s, color .12s, transform .08s;
 }
-.key:hover { border-color: var(--hairline-strong); color: var(--ink); background: linear-gradient(180deg, #1c1d1f, #131415); }
+.key:hover { border-color: #55595d; color: var(--ink); background: linear-gradient(180deg, #2a2b2f, #202124); }
 .key:active { transform: translateY(1px); }
-.key.lit { color: var(--body); }
+.key.lit { color: var(--ink); }
 .key.selected {
   border-color: var(--primary); color: var(--ink); z-index: 2;
   box-shadow: 0 0 0 1px var(--primary), inset 0 1px 0 rgba(255, 255, 255, .1);
-  background: linear-gradient(180deg, #222326, #18191b);
+  background: linear-gradient(180deg, #303236, #25272a);
 }
 .key .key-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .key .matrix-val, .key .fn-val {
