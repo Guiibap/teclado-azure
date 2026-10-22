@@ -1,16 +1,18 @@
 // lighting.js — Decodificação do perfil de iluminação (resposta do GetProfile, cmd 0x83)
 //
-// Leitura (resp[7..], 254 bytes) = 8 bytes globais + 2 perfis de 0x7B bytes.
-// Os primeiros 0x40 bytes de cada perfil têm o formato que o app original monta em sub_40d240:
-//   [4]  1 = modo personalizado (cfg GaoshouIndex) / 0 = efeito pronto
-//   [5]  efeito (1º campo da linha LedOptN do cfg.ini = índice do efeito na interface)
-//   [6]  0x20 + grupo (cfg StartGp = 0x20)
-//   [0x14..0x15] ff ff
-//   [0x16 + 2·(efeito−1)] 2 bytes de parâmetros por efeito:
-//        A: nibble baixo = cor, nibble alto = direção (tabela 0x5e028c)
-//        B: nibble baixo = brilho, nibble alto = velocidade (tabelas LightHW / SpeedHW)
-//   [0x3e..0x3f] 5a a5 (marcador)
-// Os 0x3B bytes restantes de cada perfil ainda não foram decifrados.
+// Leitura (resp[7..], 254 bytes) = 8 bytes globais + 2 blocos de 0x7B bytes (confirmado ao vivo):
+//   globais: [0] bloco ativo (0 = bloco 1, 1 = bloco 2) · [1..5] 00 · [6..7] 5a a5
+//   bloco:
+//     [0..3] 03 03 03 00 (?)
+//     [4]  1 = modo personalizado (Fn+End liga) / 0 = efeito pronto
+//     [5]  efeito (Fn+PgUp muda)
+//     [6]  0x20 + grupo · [7] 01 (?) · [0x0c..0x0d] 55 55 (?) · [0x0e..0x0f] 01 02 (?)
+//     [0x14 + 2·n] 2 bytes de parâmetros do efeito n (n = 0..29; o par do efeito 0 é ff ff):
+//        A: nibble baixo = cor, nibble alto = direção
+//        B: nibble baixo = brilho, nibble alto = velocidade
+//     [0x50..0x59] 04 × 10 (?)
+//     [0x79..0x7a] 5a a5 (marcador de fim)
+// Hipótese: os dois blocos são os modos Windows e Mac (o bloco 2 está ativo e o teclado está no modo Mac).
 
 const PROFILE_STRIDE = 0x7b;
 
@@ -31,10 +33,10 @@ function parseProfile(data) {
   for (let n = 0; 8 + (n + 1) * PROFILE_STRIDE <= data.length; n++) {
     const p = data.slice(8 + n * PROFILE_STRIDE, 8 + (n + 1) * PROFILE_STRIDE);
     const effect = p[5];
-    const param = i => ({ a: p[0x16 + 2 * (i - 1)], b: p[0x17 + 2 * (i - 1)] });
-    const cur = effect >= 1 && effect <= 20 ? param(effect) : null;
+    const cur = effect >= 1 && effect <= 29 ? { a: p[0x14 + 2 * effect], b: p[0x15 + 2 * effect] } : null;
     profiles.push({
-      raw: p, effect, custom: p[4], group: p[6] - 0x20, marker: p[0x3e] === 0x5a && p[0x3f] === 0xa5,
+      raw: p, effect, custom: p[4], group: p[6] - 0x20, active: data[0] === n,
+      marker: p[0x79] === 0x5a && p[0x7a] === 0xa5,
       color: cur && cur.a & 0xf, direction: cur && cur.a >> 4,
       brightness: cur && cur.b & 0xf, speed: cur && cur.b >> 4,
     });
@@ -47,9 +49,9 @@ function describeOffset(off) {
   if (off < 8) return `global[${off}]`;
   const n = Math.floor((off - 8) / PROFILE_STRIDE), o = (off - 8) % PROFILE_STRIDE;
   const name = o === 4 ? "personalizado" : o === 5 ? "efeito" : o === 6 ? "grupo"
-    : o >= 0x16 && o < 0x3e ? `parâmetro ${(o - 0x16) % 2 ? "B (brilho/veloc.)" : "A (cor/direção)"} do efeito ${Math.floor((o - 0x16) / 2) + 1}`
-    : o >= 0x40 ? "parte extra (não decifrada)" : "";
-  return `perfil ${n + 1} [0x${o.toString(16).padStart(2, "0")}]${name ? " " + name : ""}`;
+    : o >= 0x14 && o < 0x50 ? `parâmetro ${(o - 0x14) % 2 ? "B (brilho/veloc.)" : "A (cor/direção)"} do efeito ${Math.floor((o - 0x14) / 2)}`
+    : o >= 0x50 && o < 0x5a ? "bloco 04 04… (não decifrado)" : "";
+  return `bloco ${n + 1} [0x${o.toString(16).padStart(2, "0")}]${name ? " " + name : ""}`;
 }
 
 window.K652Lighting = { LED_EFFECTS, effectName, parseProfile, describeOffset, PROFILE_STRIDE };

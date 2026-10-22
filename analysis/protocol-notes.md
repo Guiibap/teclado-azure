@@ -233,3 +233,11 @@ Efeitos (text.xml tc_led_mode1..22 ↔ cfg LedOpt1..22): 1 Fixo, 2 Respirar, 3 A
 14 Varredura, 15 Moinho, 16 Cascata, 17 Florescer, 18 Tempestade, 19 Colisão, 20 Perfeito, 21 Personalizado, 22 OFF.
 
 Ferramenta de leitura/comparação no app (painel "Iluminação — leitura") para mapear o resto pelos atalhos Fn.
+
+## Perfil de iluminação — leitura ao vivo (2026-10-21)
+
+Leitura (resp[7..], 254 B) = 8 globais + 2 blocos de 0x7B.
+- Globais: `[0]` bloco ativo (0/1), `[6..7]` 5a a5. Com o teclado no modo Mac, o ativo é o bloco 2 (hipótese: bloco 1 = Windows, bloco 2 = Mac).
+- Bloco: `[4]` personalizado (Fn+End liga), `[5]` efeito (Fn+PgUp muda: 0x12 → 0x01), `[0x14+2n]` par de parâmetros do efeito n (par 0 = ff ff), `[0x50..0x59]` 04×10, `[0x79..0x7a]` 5a a5.
+- Fn+PgDn: efeito 01 → 04 e o byte A dos efeitos 1 e 2 foi de 07 → 01 (falta repetir com uma tecla por vez).
+- Fn+Espaço (apaga/acende) e Fn+↑/↓ indo e voltando não mudaram nada guardado.

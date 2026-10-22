@@ -322,9 +322,9 @@
 
   function showProfile(data, prefix = "") {
     const { global, profiles } = parseProfile(data);
-    let out = prefix + `Globais: ${global.map(hx).join(" ")}\n`;
+    let out = prefix + `Globais: ${global.map(hx).join(" ")} · bloco ativo: ${global[0] + 1}\n`;
     profiles.forEach((p, n) => {
-      out += `\nPerfil ${n + 1}: efeito ${p.effect} = ${effectName(p.effect)}` +
+      out += `\nBloco ${n + 1}${p.active ? " (ATIVO)" : ""}: efeito ${p.effect} (nome provável: ${effectName(p.effect)})` +
         (p.custom ? " · modo personalizado" : "") + ` · grupo ${p.group}` + (p.marker ? "" : " · SEM marcador 5a a5") +
         (p.brightness !== null ? `\n  parâmetros do efeito atual: cor ${p.color} · direção ${p.direction} · brilho ${p.brightness} · velocidade ${p.speed}` : "") + "\n";
       for (let i = 0; i < p.raw.length; i += 16)
