@@ -18,12 +18,13 @@
 const PROFILE_STRIDE = 0x7b;
 
 // Ordem da lista "Light" do app original (captura2.jpeg) = código gravado no byte [5] do bloco.
-// Confirmado ao vivo de 4 a 9, 11 e 13 (descrições do usuário batem com os nomes).
+// Confirmado ao vivo de 4 a 9, 11 e 13 (descrições do usuário batem com os nomes). Do 19 em diante vem do cfg
+// (LedOpt19..22) e do text.xml: 20 Perfect, 21 Self-define (grava [4] = 1), OFF = código 0.
 const LED_EFFECTS = [
-  null, "Fixo", "Respirar", "Arco-íris", "Flash que some", "Gotas de chuva", "Roda arco-íris",
+  "Desligado", "Fixo", "Respirar", "Arco-íris", "Flash que some", "Gotas de chuva", "Roda arco-íris",
   "Ondulações", "Estrelas piscando", "Sombra que some", "Cobra retrô", "Fluxo neon", "Reação",
   "Onda senoidal", "Varredura", "Moinho girando", "Cascata colorida", "Florescer", "Tempestade girando",
-  "Colisão", "Personalizado", "Desligado", "Modo música",
+  "Colisão", "Perfeito", "Personalizado", "efeito 22 (?)",
 ];
 
 function effectName(i) { return LED_EFFECTS[i] ?? `efeito ${i}`; }

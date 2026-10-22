@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 </head>
 <body>
 <header>
@@ -76,8 +76,13 @@
     </div>
 
     <div class="lab-group" id="bsGroup">
-      <h3>Brilho e velocidade</h3>
-      <div class="hint">Vale para o efeito que está aceso agora no modo atual. 0 = mínimo, 4 = máximo.</div>
+      <h3>Efeito, brilho e velocidade</h3>
+      <div class="hint">Vale para o modo atual (Mac ou Windows). Brilho e velocidade são do efeito aceso agora:
+        0 = mínimo, 4 = máximo.</div>
+      <div class="btn-row" style="margin-top:8px">
+        <select id="fxSel" aria-label="Efeito"></select>
+        <button id="fxWrite" class="primary">Gravar efeito</button>
+      </div>
       <div class="bs-row">
         <label>Brilho <input id="bsBright" type="range" min="0" max="4" step="1" value="4"> <output id="bsBrightV">4</output></label>
         <label>Velocidade <input id="bsSpeed" type="range" min="0" max="4" step="1" value="4"> <output id="bsSpeedV">4</output></label>
@@ -85,7 +90,7 @@
       <div id="bsInfo" class="hint">Clique em “Ler” para ver os valores atuais.</div>
       <div class="btn-row" style="margin-top:8px">
         <button id="bsRead">Ler</button>
-        <button id="bsWrite" class="primary">Gravar</button>
+        <button id="bsWrite" class="primary">Gravar brilho e velocidade</button>
         <button id="bsUndo">Desfazer</button>
         <button id="bsRestore">Restaurar original</button>
       </div>
@@ -153,10 +158,10 @@
 </main>
 
 
-<script src="layout.js?v=25"></script>
-<script src="protocol.js?v=25"></script>
-<script src="keycodes.js?v=25"></script>
-<script src="lighting.js?v=25"></script>
-<script src="app.js?v=25"></script>
+<script src="layout.js?v=26"></script>
+<script src="protocol.js?v=26"></script>
+<script src="keycodes.js?v=26"></script>
+<script src="lighting.js?v=26"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>

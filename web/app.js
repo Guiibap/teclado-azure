@@ -242,7 +242,17 @@
       if (!cur || cur.brightness === null) return log("Não achei o bloco ativo ou o efeito atual no perfil.", "err");
       $("bsBright").value = $("bsBrightV").value = cur.brightness;
       $("bsSpeed").value = $("bsSpeedV").value = cur.speed;
+      if ([...$("fxSel").options].some(o => +o.value === cur.effect)) $("fxSel").value = cur.effect;
       showBs(cur);
+    }),
+    fxWrite: () => act(async () => {
+      const data = await readProfileData();
+      const n = data[0], blk = 8 + n * PROFILE_STRIDE, fx = parseInt($("fxSel").value, 10);
+      if (n > 1 || !(fx >= 0 && fx <= 20)) return log(`Perfil ou efeito inesperado (bloco ${n + 1}, efeito ${fx}). Nada foi gravado.`, "err");
+      if (data[blk + 5] === fx && data[blk + 4] === 0) return log(`O efeito já é ${effectName(fx)}. Nada a fazer.`);
+      // [4] = 0: sai do modo personalizado (Fn+End), como o sub_40d240 faz para qualquer efeito pronto
+      const want = data.slice(); want[blk + 5] = fx; want[blk + 4] = 0;
+      await writeProfile(data, want, `efeito ${effectName(data[blk + 5])} → ${effectName(fx)}, bloco ${n + 1}`);
     }),
     bsWrite: () => act(async () => {
       const data = await readProfileData();
@@ -795,6 +805,7 @@
   renderKeyboard();
   for (const [id, fn] of Object.entries(actions)) $(id).addEventListener("click", fn);
   K652Lighting.LED_EFFECTS.forEach((name, n) => { if (n) $("macFx").add(new Option(`${n} ${name}`, n)); });
+  for (const n of [...Array(20).keys()].map(i => i + 1).concat(0)) $("fxSel").add(new Option(`${n} ${effectName(n)}`, n));
   $("macColors").innerHTML = Array.from({ length: 7 }, (_, i) =>
     `<label>${i + 1}<input type="color" value="#000000" title="Cor ${i + 1} (Fn+PgDn)"></label>`).join("");
   ["bsBright", "bsSpeed"].forEach(id => $(id).addEventListener("input", () => ($(id + "V").value = $(id).value)));

@@ -350,3 +350,5 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
 - **Confirmado 22/10 00:54:** SetProfile com os 0xFE bytes da leitura (8 globais + 2 × 0x7B) grava certo. Mudança só no
   byte 0x9a (bloco 2, efeito 1 Fixo, `44` → `41` = brilho 1, velocidade 4): releitura idêntica ao enviado e a luz mudou.
   Formato de escrita = formato de leitura; o formato curto de 0x88 do app v1.6.6 não serve para este firmware.
+- Seletor de efeito no app (22/10): grava o byte [5] do bloco ativo (códigos 1..20 na ordem da lista, 0 = desligado,
+  conforme cfg LedOpt e text.xml) e põe [4] = 0. Lista corrigida: 20 = Perfeito, 21 = Personalizado (não oferecido).
