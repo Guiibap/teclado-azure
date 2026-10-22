@@ -323,3 +323,6 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
 - Teste 2: a linha k a partir de 0x1e3 recebe a cor k (0 vermelho, 1 verde, 2 azul, 3 amarelo, 4 magenta, 5 ciano,
   6 branco, 7+ laranja). Se o Fixo do Mac sair verde, as linhas espelham as do Windows (Mac linha 0 em 0x1e3,
   efeito n em 0x1e3 + 0x15·n). Se as cores do ciclo mudarem no meio, o início não cai numa linha de 0x15.
+- Resultado do teste 2: o Fixo do Mac ficou azul nas 7 cores, ou seja, linha 2 a partir de 0x1e3 = **0x20d**. Como o Fixo é
+  o efeito 1, **a paleta do Mac começa em 0x1f8** (= 24 × 0x15), com o mesmo formato da do Windows: efeito n em
+  0x1f8 + 0x15·n, e as 23 linhas vão até 0x3da. Ficam livres 0x1e3–0x1f7 (uma linha) e 0x3db–0x3ff.
