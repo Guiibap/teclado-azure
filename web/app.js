@@ -472,6 +472,7 @@
     const losesFn = sel.layer === "normal" && cur[0] === FN && next[0] !== FN && fnKeys().length <= 1;
     const warns = [];
     if (shared.length) warns.push(`Compartilha a tabela Fn com ${shared.map(x => esc(x.name)).join(", ")}, que também muda.`);
+    if (next[0] === FN && modeAddr === 0xd4) warns.push("Experimental: o modo Windows de fábrica não tem Fn nesta tabela. Se depois de gravar o Fn não funcionar, use “Voltar ao original”.");
     if (losesFn) warns.push("Esta é a única tecla Fn: depois de gravar, as funções com Fn (mídia, LED, Bluetooth) só voltam quando você puser o Fn em outra tecla. Dá para fazer isso aqui mesmo, sem precisar do Fn.");
     $("rmPreview").innerHTML =
       `${layerName}: <strong>${esc(describeEntry(cur))}</strong> → <strong>${esc(describeEntry(next))}</strong>` +
