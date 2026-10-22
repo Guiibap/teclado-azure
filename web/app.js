@@ -21,6 +21,9 @@
     if (full) line.title = "Texto completo vai na exportação do log";
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
+    // o que importa para quem não está olhando o registro sobe como aviso
+    if (cls === "err") UI.toast(msg.split("\n")[0], "err");
+    else if (msg.startsWith("OK")) UI.toast(msg, "ok");
   }
   dev.log = (m, full) => log(m, m.startsWith("←") ? "rx" : m.startsWith("→") ? "tx" : undefined, full && `bytes: ${full}`);
 
@@ -66,8 +69,23 @@
       el.addEventListener("click", () => selectKey(el, k));
       canvas.appendChild(el);
     }
+    const sizer = document.createElement("div");
+    sizer.className = "kb-sizer";
+    sizer.appendChild(canvas);
     kb.innerHTML = "";
-    kb.appendChild(canvas);
+    kb.appendChild(sizer);
+    fitKeyboard();
+  }
+
+  // o desenho é feito em escala 1.5 e reduzido com transform; abaixo de 0.6 a moldura rola na horizontal
+  function fitKeyboard() {
+    const canvas = $("kbCanvas"), sizer = canvas?.parentElement;
+    if (!canvas) return;
+    const w = layout.width * 1.5, h = layout.height * 1.5;
+    const s = Math.max(0.6, Math.min(1, $("keyboard").clientWidth / w));
+    canvas.style.transform = `scale(${s})`;
+    sizer.style.width = w * s + "px";
+    sizer.style.height = h * s + "px";
   }
 
   function esc(s) { return s.replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])); }
@@ -119,13 +137,19 @@
       if (!("hid" in navigator)) { log("WebHID não suportado neste navegador (use Chrome/Edge).", "err"); return; }
       let d = await dev.reconnectExisting();
       if (!d) d = await dev.connect();
-      $("status").textContent = "conectado: " + d.productName;
-      $("status").className = "status on";
+      setStatus(true, d.productName || "Conectado");
       $("collections").textContent = JSON.stringify(dev.describeCollections(), null, 1);
       await loadMode();
     } catch (e) {
       log("Falha ao conectar: " + e.message, "err");
     }
+  }
+
+  function setStatus(on, text) {
+    $("status").className = "status " + (on ? "on" : "off");
+    $("status").querySelector(".status-text").textContent = text;
+    $("btnConnect").lastChild.textContent = on ? "Reconectar" : "Conectar";
+    $("btnConnect").classList.toggle("primary", !on);
   }
 
   function needDevice() {
@@ -211,7 +235,7 @@
         `Backup da tabela de antes dos testes salvo neste navegador; “Restaurar paleta” desfaz.`;
       log(`Prévia: cabeçalho 08 b8 00 40 00 00 00, Fixo do Mac em 0x${(PAL_MAC_BASE + 0x15).toString(16)}: ` +
         hex(next.slice(PAL_MAC_BASE + 0x15, PAL_MAC_BASE + 0x2a)), "note");
-      if (!confirm(msg)) return log("Cancelado, nada foi gravado.");
+      if (!(await UI.ask(msg))) return log("Cancelado, nada foi gravado.");
       if (await writePalette(next, "cópia da paleta do Windows para o Mac"))
         log("No modo Mac, Fixo + Fn+PgDn deve passar pelas mesmas cores do Windows (branco, azul, verde…).", "note");
     }),
@@ -231,18 +255,18 @@
       const next = cur.slice();
       next.set(row, off);
       log(`Prévia (efeito ${fx}, 0x${off.toString(16)}–0x${(off + 0x14).toString(16)}):\n  antes  ${hex(old)}\n  depois ${hex(row)}`, "note");
-      if (!confirm(`Gravar as 7 cores do efeito ${fx} (${effectName(fx)}) no modo Mac?\n\n` +
+      if (!(await UI.ask(`Gravar as 7 cores do efeito ${fx} (${effectName(fx)}) no modo Mac?\n\n` +
         `Só os 21 bytes em 0x${off.toString(16)}–0x${(off + 0x14).toString(16)} mudam; o resto da tabela fica igual.\n` +
-        `Para desfazer, grave as cores antigas (estão no log) ou use “Restaurar paleta”.`)) return log("Cancelado, nada foi gravado.");
+        `Para desfazer, grave as cores antigas (estão no log) ou use “Restaurar paleta”.`))) return log("Cancelado, nada foi gravado.");
       if (await writePalette(next, `cores do efeito ${fx} no Mac`))
         log("No modo Mac, nesse efeito, Fn+PgDn passa pelas 7 cores na ordem dos quadradinhos.", "note");
     }),
     bsRead: () => act(async () => {
       const cur = parseProfile(await readProfileData()).profiles.find(p => p.active);
       if (!cur || cur.brightness === null) return log("Não achei o bloco ativo ou o efeito atual no perfil.", "err");
-      $("bsBright").value = $("bsBrightV").value = cur.brightness;
-      $("bsSpeed").value = $("bsSpeedV").value = cur.speed;
-      if ([...$("fxSel").options].some(o => +o.value === cur.effect)) $("fxSel").value = cur.effect;
+      $("bsBright").value = cur.brightness;
+      $("bsSpeed").value = cur.speed;
+      if ($("fxSel").has(cur.effect)) $("fxSel").value = cur.effect;
       showBs(cur);
     }),
     fxWrite: () => act(async () => {
@@ -276,7 +300,7 @@
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
       if (!b) return log("Não há backup da paleta neste navegador.", "err");
-      if (!confirm(`Restaurar a tabela de cores para a cópia salva em ${b.ts}?`)) return;
+      if (!(await UI.ask(`Restaurar a tabela de cores para a cópia salva em ${b.ts}?`, { confirm: "Restaurar", danger: true }))) return;
       await writePalette(b.data, "restauração da paleta");
     }),
     ltSnap: () => act(async () => {
@@ -404,7 +428,8 @@
   async function restoreBackup() {
     const b = loadBackup(modeAddr);
     if (!b || b.data.length !== 0x400) return log(`Não há cópia original do modo ${MODES[modeAddr]} neste navegador.`, "err");
-    if (!confirm(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?`)) return;
+    if (!(await UI.ask(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?\n` +
+      "Todas as teclas desse modo voltam ao que eram na primeira leitura.", { confirm: "Restaurar", danger: true }))) return;
     await writeAndVerify(b.data, `restauração completa do modo ${MODES[modeAddr]}`, modeAddr);
   }
 
@@ -425,11 +450,11 @@
   const macEffect = () => parseInt($("macFx").value, 10);
   const toHex = (r, g, b) => "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("");
   function setMacColors(row) {
-    document.querySelectorAll("#macColors input").forEach((el, i) => (el.value = toHex(row[i * 3], row[i * 3 + 1], row[i * 3 + 2])));
+    document.querySelectorAll("#macColors .ui-swatch").forEach((el, i) => (el.value = toHex(row[i * 3], row[i * 3 + 1], row[i * 3 + 2])));
   }
   function getMacColors() {
     const row = new Uint8Array(0x15);
-    document.querySelectorAll("#macColors input").forEach((el, i) =>
+    document.querySelectorAll("#macColors .ui-swatch").forEach((el, i) =>
       [1, 3, 5].forEach((p, c) => (row[i * 3 + c] = parseInt(el.value.slice(p, p + 2), 16))));
     return row;
   }
@@ -497,9 +522,9 @@
     log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, ${pkt.length} bytes (formato da leitura):\n` +
       Array.from({ length: Math.ceil(pkt.length / 16) }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
       "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
-    if (!confirm(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
+    if (!(await UI.ask(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
       `o devolve (as tentativas anteriores, no formato curto do app do Windows, voltaram a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
-      `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`))
+      `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`, { danger: true })))
       return log("Cancelado, nada foi gravado.");
     log(`Gravando perfil: ${label} (03 B6)…`, "tx");
     if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
@@ -566,7 +591,7 @@
     $("rmEmpty").hidden = ready;
     $("rmBody").hidden = !ready;
     if (!ready) {
-      $("rmEmpty").textContent = !dev.connected ? "Conecte o teclado e clique numa tecla do desenho."
+      $("rmEmptyText").textContent = !dev.connected ? "Conecte o teclado e clique numa tecla do desenho."
         : !matrix ? `Lendo o modo ${MODES[modeAddr]}…` : "Clique numa tecla do desenho.";
       return;
     }
@@ -578,29 +603,30 @@
     const orig = loadBackup(modeAddr)?.data;
     const origEntry = orig && entryAt(orig, off);
 
-    $("rmKey").innerHTML = `<strong>${esc(k.name)}</strong> <span class="hint">posição ${k.matrix} · modo ${MODES[modeAddr]}</span>`;
+    $("rmKey").innerHTML = `<span class="rm-keycap">${esc(k.name)}</span>` +
+      `<div><div class="field-label">Tecla selecionada</div><div class="rm-key-meta">posição ${k.matrix} · modo ${MODES[modeAddr]}</div></div>`;
     document.querySelectorAll("#layerSeg button").forEach(b => {
       b.classList.toggle("on", b.dataset.layer === sel.layer);
       b.disabled = b.dataset.layer === "fn" && m.fnOff === null;
       b.title = b.disabled ? "Esta tecla não tem camada Fn no firmware" : "";
     });
     $("rmCurrent").innerHTML =
-      `Agora: <strong>${esc(describeEntry(cur))}</strong>` +
-      (origEntry && !sameEntry(cur, origEntry) ? ` <span class="hint">(original: ${esc(describeEntry(origEntry))})</span>` : "");
+      `<span class="field-label">Faz agora</span><strong>${esc(describeEntry(cur))}</strong>` +
+      (origEntry && !sameEntry(cur, origEntry) ? `<span class="hint">Original: ${esc(describeEntry(origEntry))}</span>` : "");
     $("rmResetKey").disabled = !origEntry || sameEntry(cur, origEntry);
     renderList();
     renderPreview();
   }
 
   function modMask() {
-    return [...document.querySelectorAll("#rmMods input:checked")].reduce((m, i) => m | (1 << +i.dataset.bit), 0);
+    return [...document.querySelectorAll("#rmMods .chip[aria-pressed=true]")].reduce((m, i) => m | (1 << +i.dataset.bit), 0);
   }
 
   function renderList() {
     const q = $("rmSearch").value.trim().toLowerCase();
     const list = $("rmList");
     list.innerHTML = "";
-    let group = null;
+    let group = null, box = null;
     for (const item of CATALOG) {
       if (item.modes && !item.modes.includes(modeAddr)) continue;
       if (q && !`${item.label} ${item.group}`.toLowerCase().includes(q)) continue;
@@ -610,15 +636,24 @@
         h.className = "rm-group";
         h.textContent = group;
         list.appendChild(h);
+        box = document.createElement("div");
+        box.className = "rm-items";
+        list.appendChild(box);
       }
       const b = document.createElement("button");
-      b.className = "rm-item" + (item === choice ? " on" : "");
+      b.type = "button";
+      b.className = "rm-item";
+      b.setAttribute("role", "option");
+      b.setAttribute("aria-selected", String(item === choice));
       b.textContent = item.label;
+      b.title = item.label;
       b.addEventListener("click", () => {
-        if (choice !== item) document.querySelectorAll("#rmMods input").forEach(i => (i.checked = false));
+        if (choice !== item) document.querySelectorAll("#rmMods .chip").forEach(c => (c.pressed = false));
+        const top = list.scrollTop;
         choice = item; renderList(); renderPreview();
+        list.scrollTop = top;
       });
-      list.appendChild(b);
+      box.appendChild(b);
     }
     if (!list.children.length) list.innerHTML = `<div class="hint">Nada encontrado.</div>`;
   }
@@ -654,8 +689,9 @@
     if (next[0] === FN && modeAddr === 0xd4) warns.push("Experimental: o modo Windows de fábrica não tem Fn nesta tabela. Se depois de gravar o Fn não funcionar, use “Voltar ao original”.");
     if (losesFn) warns.push("Esta é a única tecla Fn: depois de gravar, as funções com Fn (mídia, LED, Bluetooth) só voltam quando você puser o Fn em outra tecla. Dá para fazer isso aqui mesmo, sem precisar do Fn.");
     $("rmPreview").innerHTML =
-      `${layerName}: <strong>${esc(describeEntry(cur))}</strong> → <strong>${esc(describeEntry(next))}</strong>` +
-      warns.map(w => `<br><span class="warn">${w}</span>`).join("");
+      `<div class="arrow"><span class="muted">${layerName}</span><span class="pill">${esc(describeEntry(cur))}</span>` +
+      `<span class="muted">→</span><span class="pill new">${esc(describeEntry(next))}</span></div>` +
+      warns.map(w => `<p class="warn">${icon("triangle-alert", 14)}<span>${w}</span></p>`).join("");
     $("rmApply").disabled = sameEntry(cur, next);
   }
 
@@ -783,7 +819,10 @@
     // só depois do GetMatrix: antes disso não há como localizar a tecla e o log viraria ruído
     // modificador sozinho (Cmd, Ctrl…) passa; atalho com modificador (Cmd+A etc.) não
     const comboWithMod = (e.metaKey || e.ctrlKey) && !["Meta", "Control"].includes(e.key);
-    if (!matrix || e.target.closest?.("input, textarea") || comboWithMod || e.repeat) return;
+    // controles da página usam as setas, Enter e espaço: essas teclas não entram no testador
+    const inControl = e.target.closest?.("input, textarea, [role=slider], [role=listbox], [role=radiogroup], [role=tablist], .ui-color") ||
+      (e.target.closest?.("button") && [" ", "Enter"].includes(e.key));
+    if (!matrix || inControl || document.body.classList.contains("modal-open") || comboWithMod || e.repeat) return;
     const hid = CODE_TO_HID[e.code];
     const tag = `${e.code} (key "${e.key}")`;
     if (hid === undefined) return log(`Tecla física: ${tag} — sem código HID mapeado.`);
@@ -801,14 +840,30 @@
   });
 
   // ---------- boot ----------
+  document.querySelectorAll("[data-icon]").forEach(el => (el.innerHTML = icon(el.dataset.icon)));
+  if (!("hid" in navigator)) $("noHid").hidden = false;
+  UI.tabs($("tabs"), { storageKey: "k652.tab" });
+  UI.segmented($("modeSeg"));
+  UI.segmented($("layerSeg"));
+  UI.switch($("chkShowMatrix"));
+  document.querySelectorAll("#rmMods .chip").forEach(UI.toggle);
+  document.querySelectorAll(".disclosure").forEach(UI.disclosure);
+  UI.select($("macFx"), K652Lighting.LED_EFFECTS.map((name, n) => ({ value: n, label: name, hint: n })).slice(1)).value = 1;
+  UI.select($("fxSel"), [...Array(20).keys()].map(i => i + 1).concat(0).map(n => ({ value: n, label: effectName(n), hint: n })),
+    { placeholder: "Escolher efeito…" });
+  UI.slider($("bsBright"), { label: "Brilho", icon: "sun", value: 4 });
+  UI.slider($("bsSpeed"), { label: "Velocidade", icon: "gauge", value: 2 });
+  for (let i = 0; i < 7; i++) {
+    const b = document.createElement("button");
+    b.title = `Cor ${i + 1} (Fn+PgDn)`;
+    b.setAttribute("aria-label", `Cor ${i + 1}`);
+    b.innerHTML = `<span class="swatch-n">${i + 1}</span>`;
+    $("macColors").appendChild(UI.swatch(b));
+  }
   setupCopyBoxes();
   renderKeyboard();
+  new ResizeObserver(fitKeyboard).observe($("keyboard"));
   for (const [id, fn] of Object.entries(actions)) $(id).addEventListener("click", fn);
-  K652Lighting.LED_EFFECTS.forEach((name, n) => { if (n) $("macFx").add(new Option(`${n} ${name}`, n)); });
-  for (const n of [...Array(20).keys()].map(i => i + 1).concat(0)) $("fxSel").add(new Option(`${n} ${effectName(n)}`, n));
-  $("macColors").innerHTML = Array.from({ length: 7 }, (_, i) =>
-    `<label>${i + 1}<input type="color" value="#000000" title="Cor ${i + 1} (Fn+PgDn)"></label>`).join("");
-  ["bsBright", "bsSpeed"].forEach(id => $(id).addEventListener("input", () => ($(id + "V").value = $(id).value)));
   $("macFx").addEventListener("change", () => dev.connected && actions.macRead());
   $("ltNote").addEventListener("keydown", e => { if (e.key === "Enter") actions.ltDiff(); });
   $("chkShowMatrix").addEventListener("change", () => showMatrixValues());
@@ -822,11 +877,10 @@
 
   navigator.hid?.addEventListener?.("disconnect", e => {
     if (dev.owns(e.device)) {
-      $("status").textContent = "desconectado";
-      $("status").className = "status off";
+      setStatus(false, "Desconectado");
       log("Teclado desconectado.", "err");
     }
   });
 
-  log("App pronto. Clique em “Conectar teclado” (Chrome/Edge, servido via http://localhost ou https).");
+  log("App pronto. Clique em “Conectar” (Chrome/Edge, servido via http://localhost ou https).");
 })();

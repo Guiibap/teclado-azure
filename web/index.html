@@ -3,165 +3,244 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=26">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Configurador web do teclado Redragon K652 RGB PRO: remapeamento de teclas e iluminação pelo navegador (WebHID).">
+<title>K652 Config</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css?v=28">
 </head>
 <body>
-<header>
-  <h1>Redragon K652 <span>RGB PRO</span></h1>
-  <div id="status" class="status off">desconectado</div>
-  <button id="btnConnect" class="primary">Conectar teclado</button>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" data-icon="keyboard"></span>
+    <div>
+      <div class="brand-name">K652 Config</div>
+      <div class="brand-sub">Redragon K652 RGB PRO</div>
+    </div>
+  </div>
+  <div class="topbar-mid">
+    <div class="seg" id="modeSeg" aria-label="Modo do teclado">
+      <button type="button" data-addr="d8" class="on">Mac</button>
+      <button type="button" data-addr="d4">Windows</button>
+    </div>
+  </div>
+  <div class="topbar-end">
+    <div id="status" class="status off" role="status"><span class="dot"></span><span class="status-text">Desconectado</span></div>
+    <button type="button" id="btnConnect" class="btn primary"><span data-icon="usb"></span>Conectar</button>
+  </div>
 </header>
 
+<div id="noHid" class="banner" hidden>
+  <span data-icon="triangle-alert"></span>
+  <span>Este navegador não tem WebHID. Abra esta página no Chrome ou no Edge, no computador.</span>
+</div>
+
 <main>
-  <section id="kbSection">
-    <div id="toolbar">
-      <div class="seg" id="modeSeg" role="group" aria-label="Modo do teclado">
-        <button data-addr="d8" class="on">Modo Mac</button>
-        <button data-addr="d4">Modo Windows</button>
+  <section id="kbSection" class="stage" aria-label="Teclado">
+    <div class="stage-head">
+      <p id="kbHint" class="hint">Clique numa tecla para remapear. As teclas que você aperta no teclado físico piscam aqui.</p>
+      <div class="stage-tools">
+        <ul class="legend" aria-label="Legenda">
+          <li><span class="lg lg-changed"></span>alterada</li>
+          <li><span class="lg lg-fn"></span>tem função com Fn</li>
+        </ul>
+        <button id="chkShowMatrix" aria-checked="true">Mostrar funções</button>
       </div>
-      <label><input type="checkbox" id="chkShowMatrix" checked> mostrar funções nas teclas</label>
-      <span id="kbHint">Clique numa tecla para remapear. Teclas apertadas no teclado físico piscam aqui.</span>
     </div>
-    <div id="keyboard"></div>
-    <div id="log" class="copyable"></div>
+    <div class="kb-frame">
+      <div class="kb-glow" aria-hidden="true"></div>
+      <div id="keyboard"></div>
+    </div>
   </section>
 
-  <section id="lab">
-    <div class="lab-group remap" id="remap">
-      <h3>Remapear tecla</h3>
-      <div id="rmEmpty" class="hint">Conecte o teclado e clique numa tecla do desenho.</div>
-      <div id="rmBody" hidden>
-        <div id="rmKey" class="rm-key"></div>
-        <div class="seg" id="layerSeg" role="group" aria-label="Camada">
-          <button data-layer="normal" class="on">Normal</button>
-          <button data-layer="fn">Com Fn</button>
-        </div>
-        <div id="rmCurrent" class="rm-current"></div>
-        <input id="rmSearch" type="search" placeholder="Buscar função (ex.: volume, ç, f13)…">
-        <div id="rmList" class="rm-list"></div>
-        <div class="rm-combo" id="rmCombo" hidden>
-          <div class="rm-combo-title">Transformar em atalho <span class="hint">(opcional)</span></div>
-          <div class="hint" id="rmComboHint"></div>
-          <div class="rm-mods" id="rmMods">
-            <label><input type="checkbox" data-bit="0"> ⌃ Control</label>
-            <label><input type="checkbox" data-bit="2"> ⌥ Option</label>
-            <label><input type="checkbox" data-bit="1"> ⇧ Shift</label>
-            <label><input type="checkbox" data-bit="3"> ⌘ Command</label>
+  <nav class="tabs" id="tabs" aria-label="Seções">
+    <button type="button" data-tab="keys" id="tab-keys" aria-controls="panel-keys"><span data-icon="command"></span>Teclas</button>
+    <button type="button" data-tab="light" id="tab-light" aria-controls="panel-light"><span data-icon="lightbulb"></span>Iluminação</button>
+    <button type="button" data-tab="adv" id="tab-adv" aria-controls="panel-adv"><span data-icon="terminal"></span>Avançado</button>
+  </nav>
+
+  <!-- ===================== Teclas ===================== -->
+  <section id="panel-keys" role="tabpanel" aria-labelledby="tab-keys" class="panel">
+    <div id="remap" class="card remap">
+      <div id="rmEmpty" class="empty">
+        <span class="empty-ico" data-icon="keyboard"></span>
+        <p id="rmEmptyText">Conecte o teclado e clique numa tecla do desenho.</p>
+      </div>
+      <div id="rmBody" class="remap-grid" hidden>
+        <div class="remap-side">
+          <div class="field-label">Tecla selecionada</div>
+          <div id="rmKey" class="rm-key"></div>
+          <div class="seg seg-full" id="layerSeg" aria-label="Camada">
+            <button type="button" data-layer="normal" class="on">Normal</button>
+            <button type="button" data-layer="fn">Com Fn</button>
+          </div>
+          <div id="rmCurrent" class="rm-current"></div>
+          <div class="rm-combo" id="rmCombo" hidden>
+            <div class="field-label">Transformar em atalho <span class="muted">· opcional</span></div>
+            <div class="chips" id="rmMods">
+              <button class="chip" data-bit="0"><kbd>⌃</kbd>Control</button>
+              <button class="chip" data-bit="2"><kbd>⌥</kbd>Option</button>
+              <button class="chip" data-bit="1"><kbd>⇧</kbd>Shift</button>
+              <button class="chip" data-bit="3"><kbd>⌘</kbd>Command</button>
+            </div>
+            <p class="hint" id="rmComboHint"></p>
+          </div>
+          <div id="rmPreview" class="rm-preview"></div>
+          <div class="btn-row">
+            <button type="button" id="rmApply" class="btn primary" disabled><span data-icon="save"></span>Gravar no teclado</button>
+            <button type="button" id="rmResetKey" class="btn" disabled><span data-icon="undo-2"></span>Voltar ao original</button>
           </div>
         </div>
-        <div id="rmPreview" class="rm-preview"></div>
-        <div class="btn-row">
-          <button id="rmApply" class="primary" disabled>Gravar no teclado</button>
-          <button id="rmResetKey" disabled>Voltar ao original</button>
+        <div class="palette">
+          <div class="palette-search">
+            <span data-icon="search"></span>
+            <input id="rmSearch" class="bare" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Buscar função: volume, ç, f13, command…" aria-label="Buscar função" aria-controls="rmList">
+          </div>
+          <div id="rmList" class="rm-list" role="listbox" aria-label="Funções"></div>
         </div>
       </div>
-      <details class="rm-factory">
-        <summary>Restaurar fábrica</summary>
-        <div id="wrBackupInfo" class="hint">Sem backup salvo ainda.</div>
-        <div class="btn-row"><button id="btnWrUndo">Restaurar o modo selecionado inteiro</button></div>
-      </details>
     </div>
 
-    <div class="lab-group" id="macPalette">
-      <h3>Cores do modo Mac</h3>
-      <div class="hint">Escolha o efeito, clique em “Ler cores” e mude os quadradinhos. Cada um é uma das 7 cores que o
-        Fn+PgDn percorre nesse efeito. “Gravar” mostra os bytes, pede confirmação e confere depois.</div>
-      <div class="btn-row" style="margin-top:8px">
-        <select id="macFx" aria-label="Efeito"></select>
-        <button id="macRead">Ler cores</button>
-        <button id="macWrite" class="primary">Gravar cores</button>
-      </div>
-      <div id="macColors" class="mac-colors"></div>
-    </div>
-
-    <div class="lab-group" id="bsGroup">
-      <h3>Efeito, brilho e velocidade</h3>
-      <div class="hint">Vale para o modo atual (Mac ou Windows). Brilho e velocidade são do efeito aceso agora:
-        0 = mínimo, 4 = máximo.</div>
-      <div class="btn-row" style="margin-top:8px">
-        <select id="fxSel" aria-label="Efeito"></select>
-        <button id="fxWrite" class="primary">Gravar efeito</button>
-      </div>
-      <div class="bs-row">
-        <label>Brilho <input id="bsBright" type="range" min="0" max="4" step="1" value="4"> <output id="bsBrightV">4</output></label>
-        <label>Velocidade <input id="bsSpeed" type="range" min="0" max="4" step="1" value="4"> <output id="bsSpeedV">4</output></label>
-      </div>
-      <div id="bsInfo" class="hint">Clique em “Ler” para ver os valores atuais.</div>
-      <div class="btn-row" style="margin-top:8px">
-        <button id="bsRead">Ler</button>
-        <button id="bsWrite" class="primary">Gravar brilho e velocidade</button>
-        <button id="bsUndo">Desfazer</button>
-        <button id="bsRestore">Restaurar original</button>
+    <div class="card subtle">
+      <button class="disclosure" aria-controls="factoryBody"><span data-icon="chevron-down"></span>Restaurar o modo inteiro</button>
+      <div id="factoryBody" class="disclosure-body" hidden>
+        <p id="wrBackupInfo" class="hint">Sem backup salvo ainda.</p>
+        <button type="button" id="btnWrUndo" class="btn danger-ghost"><span data-icon="history"></span>Restaurar o modo selecionado inteiro</button>
       </div>
     </div>
+  </section>
 
-    <div class="lab-group" id="lighting">
-      <h3>Iluminação — leitura</h3>
-      <div class="hint">Só lê o perfil. Clique em “Guardar” uma vez. Depois, para cada teste: mude a luz pelo
-        próprio teclado, escreva o que fez e o que viu, e clique em “Comparar”. Cada comparação já vira o novo
-        ponto de partida, então não precisa guardar de novo.</div>
-      <div class="btn-row" style="margin-top:8px">
-        <button id="ltRead">Ler perfil</button>
-        <button id="ltSnap">Guardar para comparar</button>
-        <button id="ltColors" title="Só leitura: comando 88 B8">Ler tabela de cores</button>
+  <!-- ===================== Iluminação ===================== -->
+  <section id="panel-light" role="tabpanel" aria-labelledby="tab-light" class="panel" hidden>
+    <div class="grid-2">
+      <div class="card" id="bsGroup">
+        <div class="card-head">
+          <h2><span data-icon="sparkles"></span>Efeito</h2>
+          <button type="button" id="bsRead" class="btn ghost sm"><span data-icon="refresh-cw"></span>Ler do teclado</button>
+        </div>
+        <p class="hint">Vale para o modo selecionado lá em cima. Brilho e velocidade são do efeito aceso agora.</p>
+        <div class="field">
+          <div class="field-label">Efeito</div>
+          <div class="field-inline">
+            <div id="fxSel" aria-label="Efeito"></div>
+            <button type="button" id="fxWrite" class="btn primary"><span data-icon="save"></span>Gravar efeito</button>
+          </div>
+        </div>
+        <div id="bsBright"></div>
+        <div id="bsSpeed"></div>
+        <p id="bsInfo" class="hint">Clique em “Ler do teclado” para ver os valores atuais.</p>
+        <div class="btn-row">
+          <button type="button" id="bsWrite" class="btn primary"><span data-icon="save"></span>Gravar brilho e velocidade</button>
+          <button type="button" id="bsUndo" class="btn ghost"><span data-icon="undo-2"></span>Desfazer</button>
+          <button type="button" id="bsRestore" class="btn ghost"><span data-icon="history"></span>Restaurar original</button>
+        </div>
       </div>
-      <div class="btn-row" style="margin-top:8px">
-        <input id="ltNote" type="text" placeholder="O que você fez e viu (ex.: Fn+Espaço 1x, virou arco-íris)" style="flex:1;min-width:0">
-        <button id="ltDiff">Comparar</button>
-      </div>
-      <pre id="ltOut" class="dump copyable">—</pre>
-      <div class="hint" style="margin-top:8px">Paleta do Mac (grava na tabela de cores, com backup e confirmação):</div>
-      <div class="btn-row" style="margin-top:6px">
-        <button id="ltPalTest">Copiar paleta do Windows para o Mac</button>
-        <button id="ltPalRestore">Restaurar paleta</button>
+
+      <div class="card" id="macPalette">
+        <div class="card-head">
+          <h2><span data-icon="palette"></span>Cores do modo Mac</h2>
+          <button type="button" id="macRead" class="btn ghost sm"><span data-icon="refresh-cw"></span>Ler cores</button>
+        </div>
+        <p class="hint">Cada quadradinho é uma das 7 cores que o Fn+PgDn percorre nesse efeito. Preto deixa a tecla apagada.</p>
+        <div class="field">
+          <div class="field-label">Efeito</div>
+          <div id="macFx" aria-label="Efeito das cores"></div>
+        </div>
+        <div class="field">
+          <div class="field-label">Cores, na ordem do Fn+PgDn</div>
+          <div id="macColors" class="mac-colors"></div>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="macWrite" class="btn primary"><span data-icon="save"></span>Gravar cores</button>
+          <button type="button" id="ltPalTest" class="btn ghost"><span data-icon="copy"></span>Copiar paleta do Windows</button>
+          <button type="button" id="ltPalRestore" class="btn ghost"><span data-icon="history"></span>Restaurar paleta</button>
+        </div>
       </div>
     </div>
+  </section>
 
-    <details id="labDetails">
-    <summary><h2>Laboratório de protocolo</h2></summary>
-    <div class="lab-group">
-      <h3>Leituras seguras</h3>
+  <!-- ===================== Avançado ===================== -->
+  <section id="panel-adv" role="tabpanel" aria-labelledby="tab-adv" class="panel" hidden>
+    <div class="card">
+      <div class="card-head"><h2><span data-icon="terminal"></span>Registro</h2></div>
+      <div id="log" class="console copyable" aria-label="Registro de comandos"></div>
+    </div>
+
+    <div class="card" id="lighting">
+      <div class="card-head"><h2><span data-icon="flask-conical"></span>Diagnóstico de iluminação</h2></div>
+      <p class="hint">Só lê o perfil. Clique em “Guardar” uma vez. Depois, para cada teste: mude a luz pelo próprio teclado,
+        escreva o que fez e o que viu e clique em “Comparar”. Cada comparação vira o novo ponto de partida.</p>
       <div class="btn-row">
-        <button id="btnPassword" title="No 1º teste fez o teclado re-enumerar no macOS">GetPassword (05/81) ⚠</button>
-        <button id="btnProfile">GetProfile (83)</button>
-        <button id="btnMatrix">GetMatrix (84)</button>
+        <button type="button" id="ltRead" class="btn">Ler perfil</button>
+        <button type="button" id="ltSnap" class="btn">Guardar para comparar</button>
+        <button type="button" id="ltColors" class="btn" title="Só leitura: comando 88 B8">Ler tabela de cores</button>
       </div>
-      <div class="raw-row">
-        <label>Endereço da matriz (hex) <input id="mxAddr" type="text" value="d8" size="4"></label>
-        <span class="hint" style="align-self:end">D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.</span>
+      <div class="field-inline">
+        <input id="ltNote" class="ui-input grow" type="text" autocomplete="off"
+          placeholder="O que você fez e viu (ex.: Fn+Espaço 1x, virou arco-íris)" aria-label="Anotação do teste">
+        <button type="button" id="ltDiff" class="btn">Comparar</button>
       </div>
-      <pre id="dump" class="dump copyable">— nenhum dump ainda —</pre>
+      <pre id="ltOut" class="console short copyable">—</pre>
     </div>
 
-    <div class="lab-group">
-      <h3>Comando bruto</h3>
-      <div class="raw-row">
-        <label>Report ID <input id="rawId" type="number" value="5" min="0" max="255"></label>
-        <label>Payload (hex) <input id="rawPayload" type="text" value="83 b6 00 00 00 00" size="40"></label>
-      </div>
-      <div class="btn-row">
-        <button id="btnRawSend">SendFeature</button>
-        <button id="btnRawGet">GetFeature (resp.)</button>
-      </div>
-      <div class="raw-row">
-        <label>Responder com ID <input id="rawRespId" type="number" value="6" min="0" max="255"></label>
-      </div>
-    </div>
+    <div class="card">
+      <button class="disclosure" aria-controls="labBody"><span data-icon="chevron-down"></span>Laboratório de protocolo</button>
+      <div id="labBody" class="disclosure-body" hidden>
+        <h3 class="sub">Leituras</h3>
+        <div class="btn-row">
+          <button type="button" id="btnPassword" class="btn" title="No 1º teste fez o teclado re-enumerar no macOS"><span data-icon="triangle-alert"></span>GetPassword (05/81)</button>
+          <button type="button" id="btnProfile" class="btn">GetProfile (83)</button>
+          <button type="button" id="btnMatrix" class="btn">GetMatrix (84)</button>
+        </div>
+        <div class="field">
+          <label class="field-label" for="mxAddr">Endereço da matriz (hex)</label>
+          <div class="field-inline">
+            <input id="mxAddr" class="ui-input mono w-sm" type="text" value="d8" maxlength="2" autocomplete="off" spellcheck="false">
+            <span class="hint">D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.</span>
+          </div>
+        </div>
+        <pre id="dump" class="console short copyable">— nenhum dump ainda —</pre>
 
-    <div class="lab-group">
-      <h3>Coleções HID</h3>
-      <pre id="collections" class="dump copyable">—</pre>
+        <h3 class="sub">Comando bruto</h3>
+        <div class="field-grid">
+          <div class="field">
+            <label class="field-label" for="rawId">Report ID</label>
+            <input id="rawId" class="ui-input mono w-sm" type="text" inputmode="numeric" value="5" autocomplete="off">
+          </div>
+          <div class="field grow">
+            <label class="field-label" for="rawPayload">Payload (hex)</label>
+            <input id="rawPayload" class="ui-input mono" type="text" value="83 b6 00 00 00 00" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label class="field-label" for="rawRespId">Responder com ID</label>
+            <input id="rawRespId" class="ui-input mono w-sm" type="text" inputmode="numeric" value="6" autocomplete="off">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="btnRawSend" class="btn">SendFeature</button>
+          <button type="button" id="btnRawGet" class="btn">GetFeature (resposta)</button>
+        </div>
+
+        <h3 class="sub">Coleções HID</h3>
+        <pre id="collections" class="console short copyable">—</pre>
+      </div>
     </div>
-    </details>
   </section>
 </main>
 
+<footer class="foot">
+  Projeto independente, sem ligação com a Redragon. Funciona no Chrome e no Edge (WebHID).
+</footer>
 
-<script src="layout.js?v=26"></script>
-<script src="protocol.js?v=26"></script>
-<script src="keycodes.js?v=26"></script>
-<script src="lighting.js?v=26"></script>
-<script src="app.js?v=26"></script>
+<script src="icons.js?v=28"></script>
+<script src="ui.js?v=28"></script>
+<script src="layout.js?v=28"></script>
+<script src="protocol.js?v=28"></script>
+<script src="keycodes.js?v=28"></script>
+<script src="lighting.js?v=28"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>
