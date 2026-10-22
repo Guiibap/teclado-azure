@@ -180,7 +180,8 @@
       const data = await readProfileData();
       log("Perfil lido.", undefined, showProfile(data));
     }),
-    // tabela RGB (SetLedRgbTab escreve em 08 B8, linhas de 0x15 bytes = 7 cores R,G,B — hipótese)
+    // paleta por efeito (lida em 88 B8, gravada por SetLedRgbTab 08 B8): linha n = efeito n, 7 cores RGB.
+    // Confirmado ao vivo: bate com o Profile1.bk exportado (efeito 1 com branco no slot 0).
     ltColors: () => act(async () => {
       const r = await dev.readTable(0x88, 0xb8);
       if (!r) return log("Tabela de cores (88 B8): sem resposta.", "err");
@@ -189,7 +190,8 @@
       for (let i = 0; i < Math.max(used, 0x15); i += 0x15) {
         const row = [...r.data.slice(i, i + 0x15)];
         const cores = Array.from({ length: 7 }, (_, c) => row.slice(c * 3, c * 3 + 3).map(hx).join("")).join(" ");
-        out += `linha ${String(i / 0x15).padStart(2)}  ${cores}\n`;
+        const n = i / 0x15;
+        out += `${String(n).padStart(2)} ${(K652Lighting.LED_EFFECTS[n] ?? "—").padEnd(18)} ${cores}\n`;
       }
       $("ltOut").textContent = out;
       log(`Tabela de cores lida (88 B8): ${used} bytes não-zero.`, r.echoOk ? undefined : "err", out);

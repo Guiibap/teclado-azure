@@ -298,3 +298,13 @@ paleta de 7 cores **por efeito** (7 × RGB = 0x15 bytes por efeito), que o app m
 pela tabela RGB (`08 B8`, SetLedRgbTab). Quando o usuário escolhe uma cor no app, ele escreve essa cor no slot 0
 da paleta do efeito e põe o índice 0. Isso explica o teste: Fn+PgDn levou o nibble a 0..6 e o teclado apagou,
 porque a paleta gravada no teclado deve estar zerada. Próximo passo: ler `88 B8` e ver se aparecem linhas de 0x15.
+
+### Leitura ao vivo da paleta (`88 B8`, 2026-10-22)
+
+Confirmado: `88 B8` devolve a paleta. data[0..0x14] = linha 0 (zerada, não existe efeito 0); linha n = efeito n,
+7 cores em ordem R,G,B. Bate byte a byte com o `.bk`: efeito 1 = ffffff, 0000ff, 00ff00, ffff00, ff00ff, 00ffff,
+ffffff; os demais começam com ff0000. São 23 linhas não-zero (483 bytes).
+
+Então a paleta **não** está zerada, e a hipótese anterior para o teclado apagar com o nibble 0..6 cai.
+Possível explicação: o app do Windows gravou a paleta depois do teste de cores (quando o perfil branco foi aplicado).
+Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem branco, azul, verde, amarelo, magenta, ciano.
