@@ -46,6 +46,13 @@ kbd { font: 500 12px var(--font); }
 * { scrollbar-color: var(--stone) transparent; }
 input, textarea { caret-color: var(--ink); }
 .hint { font-size: 13px; color: var(--mute); }
+.disclaimer {
+  display: flex; gap: 8px; align-items: flex-start; margin: 0;
+  padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--hairline);
+  background: var(--surface); font-size: 12px; line-height: 1.5; color: var(--mute);
+}
+.disclaimer svg { flex: none; margin-top: 2px; color: var(--yellow); }
+.ui-dialog .disclaimer { background: var(--surface-card); }
 .muted { color: var(--mute); font-weight: 400; }
 .warn { color: var(--yellow); font-size: 13px; display: flex; gap: 8px; margin-top: 8px; }
 .warn .ico { margin-top: 2px; }

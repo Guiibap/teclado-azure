@@ -703,6 +703,7 @@
     const off = layer === "fn" ? fresh.fnOff : fresh.normalOff;
     if (off === null) throw new Error("Esta tecla não tem camada Fn.");
     if (sameEntry(entryAt(cur, off), entry)) { setMatrix(cur); return log("Nada a gravar: a tecla já está assim."); }
+    if (!(await UI.ask(`Gravar no teclado?\n${label} (modo ${MODES[modeAddr]}).`))) return log("Cancelado, nada foi gravado.");
     const next = cur.slice();
     next.set(entry, off);
     await writeAndVerify(next, label, modeAddr);

@@ -26,4 +26,6 @@ Abra http://localhost:8765 no Chrome, clique em conectar e escolha o teclado.
 
 ## Aviso
 
-Projeto pessoal, sem relação com a Redragon. Gravar dados errados no teclado pode bagunçar a iluminação ou o mapeamento; o app mostra os bytes e pede confirmação antes de cada gravação. Use por sua conta.
+Este app foi feito a partir da análise e do estudo do software original do teclado. É um projeto pessoal, sem relação com a Redragon.
+
+O autor não se responsabiliza por nenhum dano causado ao teclado ou a qualquer outro equipamento. Gravar dados errados pode bagunçar a iluminação ou o mapeamento das teclas. O app mostra os bytes e pede confirmação antes de cada gravação, mas **use por sua conta e risco**.
