@@ -960,6 +960,13 @@
   I18N.apply(document); // antes dos ícones: texto e ícone podem dividir o mesmo botão (em spans separados)
   document.querySelectorAll("[data-icon]").forEach(el => (el.innerHTML = icon(el.dataset.icon)));
   if (!("hid" in navigator)) $("noHid").hidden = false;
+  if (I18N.langs.length > 1) { // seletor de idioma: só aparece com mais de um dicionário
+    const sel = $("langSel");
+    UI.select(sel, I18N.langs.map(l => ({ value: l, label: I18N.name(l) }))).value = I18N.lang;
+    sel.querySelector(".ui-select-trigger").insertAdjacentHTML("afterbegin", icon("languages", 16));
+    sel.hidden = false;
+    sel.addEventListener("change", () => I18N.set(sel.value));
+  }
   UI.tabs($("tabs"), { storageKey: "k652.tab" });
   UI.segmented($("modeSeg"));
   UI.segmented($("layerSeg"));

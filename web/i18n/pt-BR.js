@@ -197,6 +197,7 @@ window.STRINGS["pt-BR"] = {
   "key.title.raw": "{name}\nmatriz={matrix} LED={led}",
 
   "keys.hint": "Clique numa tecla para remapear. As teclas que você aperta no teclado físico piscam aqui.",
+  "lang.aria": "Idioma",
 
   "lab.addr.hint": "D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.",
   "lab.addr.label": "Endereço da matriz (hex)",
