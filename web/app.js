@@ -756,7 +756,7 @@
       btn.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(isLog ? fullLogText() : el.innerText);
-          btn.textContent = "Copiado ✓";
+          btn.innerHTML = `${icon("check", 12)}Copiado`;
         } catch (e) {
           btn.textContent = "Falhou";
           log("Falha ao copiar: " + e.message, "err");
@@ -771,7 +771,9 @@
         btns.appendChild(exp);
       }
       btns.appendChild(btn);
-      wrap.appendChild(btns);
+      // com cabeçalho de card logo acima, os botões vão para ele e não cobrem o texto
+      const head = wrap.previousElementSibling;
+      (head?.classList.contains("card-head") ? head : wrap).appendChild(btns);
     }
     document.addEventListener("keydown", e => {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a") return;
@@ -845,7 +847,7 @@
   UI.tabs($("tabs"), { storageKey: "k652.tab" });
   UI.segmented($("modeSeg"));
   UI.segmented($("layerSeg"));
-  UI.switch($("chkShowMatrix"));
+  UI.switch($("chkShowMatrix")).checked = true;
   document.querySelectorAll("#rmMods .chip").forEach(UI.toggle);
   document.querySelectorAll(".disclosure").forEach(UI.disclosure);
   UI.select($("macFx"), K652Lighting.LED_EFFECTS.map((name, n) => ({ value: n, label: name, hint: n })).slice(1)).value = 1;
