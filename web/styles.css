@@ -101,12 +101,11 @@ input[type=number] { width: 70px; }
 #log .tx { color: #7dd3fc; }
 #log .rx { color: #9fe8b4; }
 #log .err { color: #f87171; }
+#log .note { color: #fcd34d; }
 
 .copy-wrap { position: relative; }
-.copy-btn {
-  position: absolute; top: 6px; right: 8px; z-index: 1;
-  padding: 3px 9px; font-size: 11px; border-radius: 6px; opacity: .75;
-}
+.copy-btns { position: absolute; top: 6px; right: 8px; z-index: 1; display: flex; gap: 6px; }
+.copy-btn { padding: 3px 9px; font-size: 11px; border-radius: 6px; opacity: .75; }
 .copy-btn:hover { opacity: 1; }
 .copyable:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
 

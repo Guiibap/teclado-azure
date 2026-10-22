@@ -10,14 +10,31 @@
   const $ = id => document.getElementById(id);
   const logEl = $("log");
 
-  function log(msg, cls) {
+  // full = texto completo (bytes inteiros, listas): vai para a exportação, a tela mostra só msg
+  const logEntries = [];
+  function log(msg, cls, full = null) {
+    const time = new Date().toLocaleTimeString();
+    logEntries.push({ time, msg, full });
     const line = document.createElement("div");
     if (cls) line.className = cls;
-    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    line.textContent = `[${time}] ${msg}`;
+    if (full) line.title = "Texto completo vai na exportação do log";
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
   }
-  dev.log = m => log(m, m.startsWith("←") ? "rx" : m.startsWith("→") ? "tx" : undefined);
+  dev.log = (m, full) => log(m, m.startsWith("←") ? "rx" : m.startsWith("→") ? "tx" : undefined, full && `bytes: ${full}`);
+
+  function fullLogText() {
+    return logEntries.map(e => `[${e.time}] ${e.msg}` + (e.full ? "\n    " + e.full.replace(/\n/g, "\n    ") : "")).join("\n") + "\n";
+  }
+
+  function exportLog() {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([fullLogText()], { type: "text/plain" }));
+    a.download = `k652-log-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
 
   // ---------- teclado ----------
   function renderKeyboard() {
@@ -159,11 +176,13 @@
       else log("GetFeature: sem resposta/erro.", "err");
     }),
     btnWrUndo: () => act(restoreBackup),
-    ltRead: () => act(async () => showProfile(await readProfileData())),
+    ltRead: () => act(async () => {
+      const data = await readProfileData();
+      log("Perfil lido.", undefined, showProfile(data));
+    }),
     ltSnap: () => act(async () => {
       profileSnap = await readProfileData();
-      showProfile(profileSnap);
-      log("Perfil guardado. Mude a iluminação pelo teclado e clique em “Comparar”.");
+      log("Perfil guardado. Mude a iluminação pelo teclado, anote o que fez e clique em “Comparar”.", undefined, showProfile(profileSnap));
     }),
     ltDiff: () => act(async () => {
       if (!profileSnap) return log("Clique em “Guardar para comparar” primeiro.", "err");
@@ -172,8 +191,14 @@
       for (let i = 0; i < Math.max(now.length, profileSnap.length); i++)
         if (now[i] !== profileSnap[i]) diffs.push(i);
       const lines = diffs.map(i => `0x${i.toString(16).padStart(3, "0")}  ${hx(profileSnap[i])} → ${hx(now[i])}   ${describeOffset(i)}`);
-      showProfile(now, `Diferenças em relação ao guardado (${diffs.length} bytes):\n` + (lines.join("\n") || "nenhuma") + "\n\n");
-      log(`Comparação: ${diffs.length} bytes mudaram.`);
+      const note = $("ltNote").value.trim();
+      const head = `Diferenças em relação ao guardado (${diffs.length} bytes):\n` + (lines.join("\n") || "nenhuma") + "\n\n";
+      const decoded = showProfile(now, head);
+      log(`Comparação${note ? ` [${note}]` : ""}: ${diffs.length} bytes mudaram.`, "note", decoded);
+      if (!note) log("Dica: escreva no campo “O que você fez” antes de comparar, para a anotação ir junto no log.");
+      // a próxima comparação parte daqui
+      profileSnap = now;
+      $("ltNote").value = "";
     }),
     rmApply: () => act(applyChoice),
     rmResetKey: () => act(resetKey),
@@ -306,6 +331,7 @@
         out += `  ${i.toString(16).padStart(2, "0")}  ${[...p.raw.slice(i, i + 16)].map(hx).join(" ")}\n`;
     });
     $("ltOut").textContent = out;
+    return out;
   }
 
   // ---------- remapeador ----------
@@ -487,20 +513,33 @@
       wrap.className = "copy-wrap";
       el.replaceWith(wrap);
       wrap.appendChild(el);
+      const btns = document.createElement("div");
+      btns.className = "copy-btns";
+      // o log mostra os bytes cortados; copiar/exportar levam o texto completo
+      const isLog = el === logEl;
+      const label = isLog ? "Copiar completo" : "Copiar";
       const btn = document.createElement("button");
       btn.className = "copy-btn";
-      btn.textContent = "Copiar";
+      btn.textContent = label;
       btn.addEventListener("click", async () => {
         try {
-          await navigator.clipboard.writeText(el.innerText);
+          await navigator.clipboard.writeText(isLog ? fullLogText() : el.innerText);
           btn.textContent = "Copiado ✓";
         } catch (e) {
           btn.textContent = "Falhou";
           log("Falha ao copiar: " + e.message, "err");
         }
-        setTimeout(() => (btn.textContent = "Copiar"), 1200);
+        setTimeout(() => (btn.textContent = label), 1200);
       });
-      wrap.appendChild(btn);
+      if (isLog) {
+        const exp = document.createElement("button");
+        exp.className = "copy-btn";
+        exp.textContent = "Exportar .txt";
+        exp.addEventListener("click", exportLog);
+        btns.appendChild(exp);
+      }
+      btns.appendChild(btn);
+      wrap.appendChild(btns);
     }
     document.addEventListener("keydown", e => {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a") return;
@@ -569,6 +608,7 @@
   setupCopyBoxes();
   renderKeyboard();
   for (const [id, fn] of Object.entries(actions)) $(id).addEventListener("click", fn);
+  $("ltNote").addEventListener("keydown", e => { if (e.key === "Enter") actions.ltDiff(); });
   $("chkShowMatrix").addEventListener("change", () => showMatrixValues());
   document.querySelectorAll("#modeSeg button").forEach(b =>
     b.addEventListener("click", () => setMode(parseInt(b.dataset.addr, 16))));

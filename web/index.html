@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
 <header>
@@ -65,12 +65,16 @@
 
     <div class="lab-group" id="lighting">
       <h3>Iluminação — leitura</h3>
-      <div class="hint">Só lê o perfil. Para descobrir o formato: clique em “Guardar”, mude a luz pelo próprio
-        teclado (Fn+Espaço, Fn+setas…) e clique em “Comparar”.</div>
+      <div class="hint">Só lê o perfil. Clique em “Guardar” uma vez. Depois, para cada teste: mude a luz pelo
+        próprio teclado, escreva o que fez e o que viu, e clique em “Comparar”. Cada comparação já vira o novo
+        ponto de partida, então não precisa guardar de novo.</div>
       <div class="btn-row" style="margin-top:8px">
         <button id="ltRead">Ler perfil</button>
         <button id="ltSnap">Guardar para comparar</button>
-        <button id="ltDiff">Comparar com o guardado</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <input id="ltNote" type="text" placeholder="O que você fez e viu (ex.: Fn+Espaço 1x, virou arco-íris)" style="flex:1;min-width:0">
+        <button id="ltDiff">Comparar</button>
       </div>
       <pre id="ltOut" class="dump copyable">—</pre>
     </div>
@@ -115,10 +119,10 @@
 </main>
 
 
-<script src="layout.js?v=10"></script>
-<script src="protocol.js?v=10"></script>
-<script src="keycodes.js?v=10"></script>
-<script src="lighting.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="layout.js?v=11"></script>
+<script src="protocol.js?v=11"></script>
+<script src="keycodes.js?v=11"></script>
+<script src="lighting.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

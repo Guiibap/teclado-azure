@@ -158,7 +158,8 @@ class K652Device {
       payload = fixed;
     }
     await d.sendFeatureReport(reportId, payload);
-    this.log(`→ SetFeature ID=${reportId} [#${this.devices.indexOf(d)}] len=${payload.length}: ${hex(payload.slice(0, 24))}${payload.length > 24 ? " …" : ""}`);
+    this.log(`→ SetFeature ID=${reportId} [#${this.devices.indexOf(d)}] len=${payload.length}: ${hex(payload.slice(0, 24))}${payload.length > 24 ? " …" : ""}`,
+      payload.length > 24 ? hex(payload) : null);
   }
 
   async getFeature(reportId) {
@@ -168,7 +169,8 @@ class K652Device {
     // Chrome/macOS: resposta de tamanho cheio vem sem o ID (1031 B, GetMatrix), mas resposta
     // curta vem com o ID no byte 0 (262 B começando em 06, GetProfile). Normaliza para [payload...].
     if (buf.length && buf[0] === reportId && buf.length !== featureLength(d, reportId)) buf = buf.slice(1);
-    this.log(`← GetFeature ID=${reportId} [#${this.devices.indexOf(d)}] len=${buf.length}: ${hex(buf.slice(0, 24))}${buf.length > 24 ? " …" : ""}`);
+    this.log(`← GetFeature ID=${reportId} [#${this.devices.indexOf(d)}] len=${buf.length}: ${hex(buf.slice(0, 24))}${buf.length > 24 ? " …" : ""}`,
+      buf.length > 24 ? hex(buf) : null);
     return buf;
   }
 
