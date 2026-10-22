@@ -51,8 +51,8 @@ const CONSUMER_NAMES = {
   0x0227: "Atualizar", 0x022a: "Favoritos",
 };
 
-// Funções internas (tipo 0x0e) com nome tirado das legendas dos keycaps (foto teclado-azure.jpg)
-const INTERNAL_NAMES = { 0x0c: "BT1", 0x0d: "BT2", 0x0e: "BT3", 0x0f: "2.4G" };
+// Funções internas (tipo 0x0e): nomes das legendas dos keycaps (foto teclado-azure.jpg) e do manual (Fn+Esc, Fn+Espaço)
+const INTERNAL_NAMES = { 0x05: "Reset de fábrica", 0x0c: "BT1", 0x0d: "BT2", 0x0e: "BT3", 0x0f: "2.4G", 0x16: "Luz liga/desliga" };
 
 // bits do param de uma tecla tipo 0 (máscara de modificadores HID); exibidos na ordem do Mac ⌃⌥⇧⌘
 const MOD_BITS = [
@@ -80,6 +80,9 @@ function describeEntry(e) {
     case KEY_TYPE.LED_SPEED: return `LED velocidade ${param === 1 ? "+" : param === 2 ? "−" : param}`;
     case KEY_TYPE.FN: return "Fn";
     case KEY_TYPE.INTERNAL: return INTERNAL_NAMES[code] ?? `Interna 0x${hexb(code)}`;
+    // manual + teste ao vivo: Fn+PgUp troca o efeito, Fn+End grava luz por tecla, Fn+PgDn muda a cor
+    case 0x0b: return param === 3 ? "LED próximo efeito" : param === 0 && code === 0x20 ? "LED gravar por tecla" : `tipo 0x0b [${hexb(param)} ${hexb(code)}]`;
+    case 0x12: return param === 3 ? "LED cor" : `tipo 0x12 [${hexb(param)} ${hexb(code)}]`;
     default: return `tipo 0x${hexb(type)} [${hexb(param)} ${hexb(code)}]`;
   }
 }

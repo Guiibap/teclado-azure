@@ -241,3 +241,12 @@ Leitura (resp[7..], 254 B) = 8 globais + 2 blocos de 0x7B.
 - Bloco: `[4]` personalizado (Fn+End liga), `[5]` efeito (Fn+PgUp muda: 0x12 → 0x01), `[0x14+2n]` par de parâmetros do efeito n (par 0 = ff ff), `[0x50..0x59]` 04×10, `[0x79..0x7a]` 5a a5.
 - Fn+PgDn: efeito 01 → 04 e o byte A dos efeitos 1 e 2 foi de 07 → 01 (falta repetir com uma tecla por vez).
 - Fn+Espaço (apaga/acende) e Fn+↑/↓ indo e voltando não mudaram nada guardado.
+
+### Manual (manual teclado azure.pdf) cruzado com a camada Fn do D8
+- Fn+PgUp = próximo efeito (20 efeitos) → tipo 0x0b [03 00]
+- Fn+End = gravação de luz por tecla (A/W/D/S + setas escolhem cor; Fn+End salva, Fn+PgUp sai) → tipo 0x0b [00 20]
+- Fn+PgDn → tipo 0x12 [03 00]; o manual diz "Fn+Del muda a cor", mas o Del deste teclado não tem Fn, e no teste o PgDn mudou o byte de cor. Provável: cor.
+- Fn+←/→ velocidade (0x0d), Fn+↑/↓ brilho (0x0c), Fn+Espaço liga/desliga (interna 0x16)
+- Fn+Esc = reset de fábrica (interna 0x05). NÃO usar nos testes: deve apagar os remapeamentos.
+- Fn+1/2/3 = BT, Fn+4 (3 s) = pareamento 2.4G. Fn+Win trava a tecla Win.
+- Ainda sem nome: interna 0x1e (Fn+Tab), 0x10 (Fn+G), 0x12 (Fn+/?).
