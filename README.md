@@ -2,7 +2,7 @@
 
 Configurador web (WebHID) para o teclado Redragon K652 RGB PRO ("Azure"), feito por engenharia reversa do software oficial do fabricante, que só existe para Windows.
 
-Funciona no Chrome ou no Edge, sem instalar nada:
+Funciona em navegadores baseados em Chromium (Chrome, Edge, Brave, Opera e outros), sem instalar nada:
 
 - leitura e gravação do perfil: efeito, brilho e velocidade;
 - paleta de cores do modo Mac;
@@ -16,7 +16,7 @@ O WebHID só funciona em `localhost` ou HTTPS. Sirva a pasta `web/`:
 cd web && python3 -m http.server 8765
 ```
 
-Abra http://localhost:8765 no Chrome, clique em conectar e escolha o teclado.
+Abra http://localhost:8765 num navegador baseado em Chromium, clique em conectar e escolha o teclado.
 
 ## Estrutura
 

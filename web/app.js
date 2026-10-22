@@ -134,7 +134,7 @@
   // ---------- conexão ----------
   async function connect() {
     try {
-      if (!("hid" in navigator)) { log("WebHID não suportado neste navegador (use Chrome/Edge).", "err"); return; }
+      if (!("hid" in navigator)) { log("WebHID não suportado neste navegador (use um navegador baseado em Chromium: Chrome, Edge, Brave, Opera…).", "err"); return; }
       let d = await dev.reconnectExisting();
       if (!d) d = await dev.connect();
       setStatus(true, d.productName || "Conectado");
@@ -998,5 +998,5 @@
     }
   });
 
-  log("App pronto. Clique em “Conectar” (Chrome/Edge, servido via http://localhost ou https).");
+  log("App pronto. Clique em “Conectar” (navegador baseado em Chromium, servido via http://localhost ou https).");
 })();
