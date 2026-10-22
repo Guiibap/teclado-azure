@@ -23,18 +23,21 @@ const HID_NAMES = (() => {
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((c, i) => (t[0x04 + i] = c));
   "1234567890".split("").forEach((c, i) => (t[0x1e + i] = c));
   Object.assign(t, {
-    0x28: "Enter", 0x29: "Esc", 0x2a: "Backspace", 0x2b: "Tab", 0x2c: "Space", 0x2d: "-", 0x2e: "=",
-    0x2f: "[", 0x30: "]", 0x31: "\\", 0x32: "#(ISO)", 0x33: ";", 0x34: "'", 0x35: "`", 0x36: ",",
-    0x37: ".", 0x38: "/", 0x39: "CapsLock", 0x46: "PrtSc", 0x47: "ScrollLock", 0x48: "Pause",
+    // símbolos com a legenda ABNT2 (o que sai com o teclado configurado como "Brasileiro" no macOS)
+    0x28: "Enter", 0x29: "Esc", 0x2a: "Backspace", 0x2b: "Tab", 0x2c: "Space", 0x2d: "- _", 0x2e: "= +",
+    0x2f: "´ `", 0x30: "[ {", 0x31: "] }", 0x32: "] } (ISO)", 0x33: "Ç", 0x34: "~ ^", 0x35: "' \"",
+    0x36: ", <", 0x37: ". >", 0x38: "; :", 0x39: "CapsLock", 0x46: "PrtSc", 0x47: "ScrollLock", 0x48: "Pause",
     0x49: "Insert", 0x4a: "Home", 0x4b: "PgUp", 0x4c: "Delete", 0x4d: "End", 0x4e: "PgDn",
     0x4f: "→", 0x50: "←", 0x51: "↓", 0x52: "↑", 0x53: "NumLock", 0x54: "KP/", 0x55: "KP*",
-    0x56: "KP-", 0x57: "KP+", 0x58: "KPEnter", 0x63: "KP.", 0x64: "\\(ISO)", 0x65: "Menu",
-    0x85: "KP,", 0x87: "Intl1(Ro)", 0x88: "Intl2(Kana)", 0x89: "Intl3(Yen)", 0x8a: "Intl4(Henkan)",
+    0x56: "KP-", 0x57: "KP+", 0x58: "KPEnter", 0x63: "KP.", 0x64: "\\ |", 0x65: "Menu",
+    0x85: "KP,", 0x87: "/ ?", 0x88: "Intl2(Kana)", 0x89: "Intl3(Yen)", 0x8a: "Intl4(Henkan)",
     0x8b: "Intl5(Muhenkan)", 0x90: "Lang1", 0x91: "Lang2",
-    0xe0: "LCtrl", 0xe1: "LShift", 0xe2: "LAlt", 0xe3: "LWin/Fn", 0xe4: "RCtrl", 0xe5: "RShift",
-    0xe6: "RAlt", 0xe7: "RWin",
+    // modificadores: nome do Mac primeiro, do Windows entre parênteses
+    0xe0: "Control", 0xe1: "Shift", 0xe2: "Option (Alt)", 0xe3: "Command (Win)", 0xe4: "Control dir.",
+    0xe5: "Shift dir.", 0xe6: "Option dir. (AltGr)", 0xe7: "Command dir.",
   });
   for (let i = 0; i < 12; i++) t[0x3a + i] = "F" + (i + 1);
+  for (let i = 0; i < 12; i++) t[0x68 + i] = "F" + (i + 13);
   for (let i = 0; i < 9; i++) t[0x59 + i] = "KP" + (i + 1);
   t[0x62] = "KP0";
   return t;
@@ -51,7 +54,11 @@ const CONSUMER_NAMES = {
 // Funções internas (tipo 0x0e) com nome tirado das legendas dos keycaps (foto teclado-azure.jpg)
 const INTERNAL_NAMES = { 0x0c: "BT1", 0x0d: "BT2", 0x0e: "BT3", 0x0f: "2.4G" };
 
-const MOD_BITS = ["Ctrl", "Shift", "Alt", "Win", "RCtrl", "RShift", "RAlt", "RWin"];
+// bits do param de uma tecla tipo 0 (máscara de modificadores HID); exibidos na ordem do Mac ⌃⌥⇧⌘
+const MOD_BITS = [
+  { bit: 0, sym: "⌃" }, { bit: 2, sym: "⌥" }, { bit: 1, sym: "⇧" }, { bit: 3, sym: "⌘" },
+  { bit: 4, sym: "⌃dir" }, { bit: 6, sym: "⌥dir" }, { bit: 5, sym: "⇧dir" }, { bit: 7, sym: "⌘dir" },
+];
 
 function hexb(n, w = 2) { return n.toString(16).padStart(w, "0"); }
 
@@ -61,8 +68,8 @@ function describeEntry(e) {
   switch (type) {
     case KEY_TYPE.KEY: {
       if (!code && !param) return "—";
-      const mods = MOD_BITS.filter((_, i) => param & (1 << i));
-      return [...mods, HID_NAMES[code] ?? `HID 0x${hexb(code)}`].join("+");
+      const mods = MOD_BITS.filter(m => param & (1 << m.bit)).map(m => m.sym).join("");
+      return mods + (HID_NAMES[code] ?? `HID 0x${hexb(code)}`);
     }
     case KEY_TYPE.MODIFIER: return HID_NAMES[code] ?? `Mod 0x${hexb(code)}`;
     case KEY_TYPE.CONSUMER: {
@@ -78,19 +85,50 @@ function describeEntry(e) {
 }
 
 // data = 0x400 bytes a partir de resp[7]
+// Cada tecla diz onde mora a sua função normal (normalOff) e, se tiver camada Fn, a do Fn (fnOff).
 function parseMatrix(data) {
   const entry = off => [...data.slice(off, off + 4)];
   const table = (base, n) => Array.from({ length: n }, (_, i) => entry(base + i * 4));
   const fnBase = table(0x210, 48);
   const fnLayer = table(0x2d0, 48);
-  const keys = table(0x000, 132).map(raw => {
+  const keys = table(0x000, 132).map((raw, idx) => {
     if (raw[0] === KEY_TYPE.DUAL && raw[3] < 48) {
       const i = raw[3];
-      return { raw, dualIndex: i, normal: describeEntry(fnBase[i]), fn: describeEntry(fnLayer[i]) };
+      return {
+        raw, dualIndex: i, normal: describeEntry(fnBase[i]), fn: describeEntry(fnLayer[i]),
+        normalOff: 0x210 + i * 4, fnOff: 0x2d0 + i * 4,
+      };
     }
-    return { raw, normal: describeEntry(raw), fn: null };
+    return { raw, normal: describeEntry(raw), fn: null, normalOff: idx * 4, fnOff: null };
   });
   return { keys, fnBase, fnLayer };
 }
 
-window.K652Keys = { KEY_TYPE, HID_NAMES, describeEntry, parseMatrix };
+// ---------- catálogo de funções para o remapeador ----------
+// bytes = entrada pronta [tipo][b1][param][código]; combo = aceita modificadores (só tipo 0)
+const CATALOG = (() => {
+  const out = [];
+  const key = (group, code) => out.push({ group, label: HID_NAMES[code], bytes: [0, 0, 0, code], combo: true });
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((_, i) => key("Letras", 0x04 + i));
+  for (let i = 0; i < 10; i++) key("Números", 0x1e + i);
+  [0x35, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x33, 0x34, 0x36, 0x37, 0x38, 0x87, 0x64].forEach(c => key("Símbolos (ABNT2)", c));
+  [0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x39, 0x4c, 0x49, 0x65].forEach(c => key("Edição", c));
+  [0x52, 0x51, 0x50, 0x4f, 0x4a, 0x4d, 0x4b, 0x4e].forEach(c => key("Navegação", c));
+  for (let i = 0; i < 12; i++) key("F1–F12", 0x3a + i);
+  for (let i = 0; i < 8; i++) key("F13–F20 (bons para atalhos)", 0x68 + i);
+  [0x46, 0x47, 0x48].forEach(c => key("Sistema", c));
+  for (let c = 0xe0; c <= 0xe7; c++) out.push({ group: "Modificadores", label: HID_NAMES[c], bytes: [KEY_TYPE.MODIFIER, 0, 0, c] });
+  for (const u of [0xcd, 0xb6, 0xb5, 0xe2, 0xea, 0xe9, 0x6f, 0x70, 0xcf, 0x221, 0x223, 0x224, 0x225, 0x192])
+    out.push({ group: "Mídia e sistema", label: CONSUMER_NAMES[u], bytes: [KEY_TYPE.CONSUMER, 0, u >> 8, u & 0xff] });
+  out.push({ group: "Outros", label: "Desativar tecla", bytes: [0, 0, 0, 0] });
+  return out;
+})();
+
+// modificadores escolhidos (bits) + item do catálogo → entrada de 4 bytes
+function encodeChoice(item, modMask = 0) {
+  const b = [...item.bytes];
+  if (item.combo && b[3]) b[2] = modMask;
+  return b;
+}
+
+window.K652Keys = { KEY_TYPE, HID_NAMES, describeEntry, parseMatrix, CATALOG, encodeChoice, MOD_BITS };

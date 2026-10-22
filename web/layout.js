@@ -940,7 +940,7 @@ window.KB_LAYOUT = {
   },
   {
    "id": 73,
-   "name": "/ ? (RShift)",
+   "name": "/ ?",
    "x1": 445,
    "y1": 148,
    "x2": 504,

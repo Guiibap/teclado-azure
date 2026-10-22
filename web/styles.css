@@ -59,7 +59,12 @@ main { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px
 @keyframes keyPress { from { background: var(--accent); color: #fff; } to { background: var(--key); } }
 .key.pressed { animation: keyPress .9s ease-out; }
 .key.has-fn { box-shadow: inset 0 -2px 0 var(--accent); }
-.key .matrix-val { text-align: center; line-height: 1.1; padding: 0 2px; }
+.key .matrix-val, .key .fn-val {
+  max-width: 100%; padding: 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.15; font-family: inherit;
+}
+.key .matrix-val { color: #e7e9f2; font-size: 8px; }
+.key .fn-val { color: #c98a76; font-size: 7px; }
 
 #lab { display: flex; flex-direction: column; gap: 14px; }
 #lab h2 { font-size: 15px; margin: 0; color: var(--accent); }
@@ -104,3 +109,48 @@ input[type=number] { width: 70px; }
 }
 .copy-btn:hover { opacity: 1; }
 .copyable:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* ---------- seletor segmentado (modo / camada) ---------- */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 5px 12px; background: var(--panel2); color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.seg button:disabled { opacity: .35; }
+
+/* ---------- remapeador ---------- */
+.lab-group.remap { border-color: #5a2a1e; }
+.lab-group.remap h3 { color: var(--accent); }
+#rmBody { display: flex; flex-direction: column; gap: 10px; }
+.rm-key strong { font-size: 15px; }
+.rm-current { font-size: 13px; }
+#rmSearch {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 7px 9px; font-size: 13px; width: 100%;
+}
+.rm-mods { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.rm-mods label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+.rm-list {
+  max-height: 260px; overflow: auto; display: flex; flex-wrap: wrap; gap: 5px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+}
+.rm-group { flex-basis: 100%; font-size: 10.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-top: 4px; }
+.rm-group:first-child { margin-top: 0; }
+.rm-item { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+.rm-item.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rm-preview { font-size: 13px; min-height: 18px; }
+.warn { color: #fbbf24; font-size: 12px; }
+.rm-factory { margin-top: 10px; font-size: 12px; }
+.rm-factory summary { cursor: pointer; color: var(--muted); margin-bottom: 6px; }
+
+/* tecla alterada em relação à cópia original do modo */
+.key.changed::after {
+  content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+}
+
+#labDetails summary { cursor: pointer; list-style: none; margin-bottom: 10px; }
+#labDetails summary::-webkit-details-marker { display: none; }
+#labDetails summary h2 { display: inline; }
+#labDetails summary h2::before { content: "▸ "; }
+#labDetails[open] summary h2::before { content: "▾ "; }
+#labDetails[open] { display: flex; flex-direction: column; gap: 14px; }

@@ -5,7 +5,7 @@
   const layout = window.KB_LAYOUT;
   const { parseMatrix } = window.K652Keys;
   const dev = new K652Device();
-  let matrix = null; // parseMatrix() da última leitura
+  let matrix = null; // parseMatrix() da matriz do modo selecionado
 
   const $ = id => document.getElementById(id);
   const logEl = $("log");
@@ -44,7 +44,7 @@
         el.style.paddingTop = (h / 4 - 6) + "px";
         el.style.width = w + "px";
       }
-      el.innerHTML = `<span class="key-name">${esc(k.name)}</span><span class="matrix-val"></span>`;
+      el.innerHTML = `<span class="key-name">${esc(k.name)}</span><span class="matrix-val"></span><span class="fn-val"></span>`;
       el.title = `${k.name}\nmatriz=${k.matrix} LED=${k.led ?? "?"}`;
       el.addEventListener("click", () => selectKey(el, k));
       canvas.appendChild(el);
@@ -55,29 +55,32 @@
 
   function esc(s) { return s.replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])); }
 
-  function selectKey(el, k) {
-    document.querySelectorAll(".key.selected").forEach(x => x.classList.remove("selected"));
-    el.classList.add("selected");
-    let extra = "";
-    const m = matrix?.keys[k.matrix];
-    if (m) {
-      extra = ` — matriz [${hex(new Uint8Array(m.raw))}] → ${m.normal}` +
-        (m.fn ? ` | Fn: ${m.fn} (índice Fn 0x${m.dualIndex.toString(16)})` : "");
-    }
-    log(`Tecla "${k.name}" — matriz ${k.matrix}, LED ${k.led ?? "?"}${extra}`);
+  const short = s => s.replace(/\s*\(.*\)/, "");
+  const KEYCAP_ALIASES = { del: "delete", ctrl: "control" };
+  function sameLabel(keycap, fn) {
+    const norm = s => short(s).replace(/\s+/g, "").toLowerCase();
+    const a = norm(keycap), f = norm(fn);
+    // "1 !" e "1" contam como iguais (legenda com símbolo de Shift)
+    return (KEYCAP_ALIASES[a] ?? a) === f || keycap.split(" ")[0].toLowerCase() === f;
   }
 
-  function showMatrixValues(show) {
+  // rótulos nas teclas + marca das alteradas em relação à cópia original do modo
+  function showMatrixValues() {
+    const show = $("chkShowMatrix").checked;
+    const orig = matrix && loadBackup(modeAddr)?.data;
     document.querySelectorAll(".key").forEach(el => {
-      const mv = el.querySelector(".matrix-val");
-      if (!show || !matrix) { mv.textContent = ""; el.classList.remove("lit", "has-fn"); return; }
+      const mv = el.querySelector(".matrix-val"), fv = el.querySelector(".fn-val");
       const k = layout.keys.find(x => x.id === +el.dataset.id);
-      const m = k && matrix.keys[k.matrix];
-      if (m) {
-        mv.textContent = m.fn ? `${m.normal} · Fn:${m.fn}` : m.normal;
-        el.classList.toggle("lit", m.normal !== "—");
-        el.classList.toggle("has-fn", !!m.fn);
-      }
+      const m = matrix && k && matrix.keys[k.matrix];
+      if (!m) { mv.textContent = fv.textContent = ""; el.classList.remove("lit", "has-fn", "changed"); return; }
+      // 2ª linha só quando a função difere da legenda impressa; 3ª linha = função com Fn
+      mv.textContent = show && sameLabel(k.name, m.normal) ? "" : show ? short(m.normal) : "";
+      fv.textContent = show && m.fn ? "Fn " + short(m.fn) : "";
+      el.title = `${k.name} — ${m.normal}${m.fn ? `\nCom Fn: ${m.fn}` : ""}`;
+      el.classList.toggle("lit", show && m.normal !== "—");
+      el.classList.toggle("has-fn", show && !!m.fn);
+      const changed = orig && [m.normalOff, m.fnOff].some(o => o !== null && !sameEntry(entryAt(matrixData, o), entryAt(orig, o)));
+      el.classList.toggle("changed", !!changed);
     });
   }
 
@@ -102,7 +105,7 @@
       $("status").textContent = "conectado: " + d.productName;
       $("status").className = "status on";
       $("collections").textContent = JSON.stringify(dev.describeCollections(), null, 1);
-      log("Coleções HID listadas no painel.");
+      await loadMode();
     } catch (e) {
       log("Falha ao conectar: " + e.message, "err");
     }
@@ -136,11 +139,12 @@
         r.echoOk ? undefined : "err");
     }),
     btnMatrix: () => act(async () => {
-      const addr = matrixAddr();
+      const addr = labAddr();
       const r = await dev.getMatrix(addr);
       if (!r) return log("GetMatrix: sem resposta.", "err");
       dumpHex(r.raw, `GetMatrix (cmd 0x84, endereço 0x${addr.toString(16)}) resposta — matriz a partir de 0x07`);
-      tryParseMatrix(r.data);
+      appendDecoded(r.data);
+      if (addr === modeAddr) setMatrix(r.data);
     }),
     btnRawSend: () => act(async () => {
       const id = +$("rawId").value;
@@ -154,28 +158,58 @@
       if (r) dumpHex(r, `GetFeature ID=${id}`);
       else log("GetFeature: sem resposta/erro.", "err");
     }),
-    btnWrPrepare: () => act(prepareRemap),
-    btnWrWrite: () => act(writeRemap),
     btnWrUndo: () => act(restoreBackup),
+    rmApply: () => act(applyChoice),
+    rmResetKey: () => act(resetKey),
   };
 
-  // ---------- escrita: remapear tecla (SetKeyMatrix, sub_4458b0) ----------
-  // Fluxo: lê a matriz atual → guarda backup (um por endereço; o 1º fica salvo até ser restaurado) →
-  // troca só uma entrada → mostra o diff → grava → lê de novo e compara byte a byte.
-  // Endereços: D4 = tabela do modo Windows, D8 = modo Mac, DC = macros.
+  // ---------- modo (tabela de teclas) ----------
+  // Endereços da matriz: D4 = modo Windows, D8 = modo Mac, DC = macros (só leitura no lab).
+  const MODES = { 0xd8: "Mac", 0xd4: "Windows" };
+  let modeAddr = 0xd8;
+  try { if (MODES[+localStorage.getItem("k652.mode")]) modeAddr = +localStorage.getItem("k652.mode"); } catch {}
+  let matrixData = null; // 0x400 bytes da matriz do modo selecionado (última leitura)
+
+  function labAddr() {
+    const a = parseInt($("mxAddr").value, 16);
+    if (!(a >= 0 && a <= 0xff)) throw new Error("Endereço da matriz deve ser 00–FF.");
+    return a;
+  }
+
+  function setMode(addr) {
+    modeAddr = addr;
+    try { localStorage.setItem("k652.mode", String(addr)); } catch {}
+    document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", parseInt(b.dataset.addr, 16) === addr));
+    $("mxAddr").value = addr.toString(16);
+    matrix = null; matrixData = null;
+    showMatrixValues(); renderPanel(); showBackupInfo();
+    if (dev.connected) act(loadMode);
+  }
+
+  async function loadMode() {
+    const data = await readMatrixChecked(modeAddr);
+    if (!loadBackup(modeAddr)) { saveBackup(data, modeAddr); log(`Cópia original do modo ${MODES[modeAddr]} salva neste navegador.`); }
+    setMatrix(data);
+    showBackupInfo();
+    log(`Modo ${MODES[modeAddr]} carregado (matriz 0x${modeAddr.toString(16)}).`);
+  }
+
+  function setMatrix(data) {
+    matrixData = data;
+    matrix = parseMatrix(data);
+    showMatrixValues();
+    renderPanel();
+  }
+
+  // ---------- backup (cópia original por modo) ----------
+  // A 1ª leitura de cada modo fica salva no navegador; serve para "voltar ao original" por tecla,
+  // marcar teclas alteradas e restaurar o modo inteiro.
   const BACKUP_PREFIX = "k652.matrixBackup.";
   const backupKey = addr => BACKUP_PREFIX + addr.toString(16);
   try { // migra o backup único da versão anterior (sempre D4)
     const legacy = localStorage.getItem("k652.matrixBackup");
     if (legacy) { localStorage.setItem(backupKey(0xd4), legacy); localStorage.removeItem("k652.matrixBackup"); }
   } catch {}
-
-  function matrixAddr() {
-    const a = parseInt($("mxAddr").value, 16);
-    if (!(a >= 0 && a <= 0xff)) throw new Error("Endereço da matriz deve ser 00–FF.");
-    return a;
-  }
-  let pendingWrite = null; // { data, label }
 
   function loadBackup(addr) {
     try {
@@ -191,11 +225,10 @@
   }
 
   function showBackupInfo() {
-    const list = [0xd4, 0xd8, 0xdc].map(loadBackup).filter(Boolean);
-    $("wrBackupInfo").textContent = list.length
-      ? "Backups originais salvos neste navegador: " + list.map(b => `0x${b.addr.toString(16)} (${b.ts})`).join(", ") +
-        ". “Desfazer” restaura o do endereço selecionado."
-      : "Sem backup salvo ainda — o 1º “Preparar” de cada endereço cria um.";
+    const b = loadBackup(modeAddr);
+    $("wrBackupInfo").textContent = b
+      ? `Cópia original do modo ${MODES[modeAddr]} salva em ${b.ts}, neste navegador.`
+      : `Ainda sem cópia original do modo ${MODES[modeAddr]} — ela é salva na 1ª leitura.`;
   }
 
   async function readMatrixChecked(addr) {
@@ -208,99 +241,182 @@
     return r.data;
   }
 
-  async function prepareRemap() {
-    pendingWrite = null;
-    $("btnWrWrite").disabled = true;
-    const idx = +$("wrIdx").value;
-    const code = parseInt($("wrCode").value, 16);
-    if (!(idx >= 0 && idx < 132) || !(code > 0 && code < 0x100)) return log("Matriz deve ser 0–131 e código HID 01–FF.", "err");
-
-    const addr = matrixAddr();
-    const cur = await readMatrixChecked(addr);
-    tryParseMatrix(cur);
-    if (!loadBackup(addr)) { saveBackup(cur, addr); log(`Backup da matriz 0x${addr.toString(16)} salvo neste navegador.`); }
-    showBackupInfo();
-
-    // tecla tipo 2 (com camada Fn): troca a entrada FnBase do índice, preservando a função Fn
-    const e = cur.slice(idx * 4, idx * 4 + 4);
-    const dual = e[0] === 0x02 && e[3] < 48 && !$("wrBase").checked;
-    const off = dual ? 0x210 + e[3] * 4 : idx * 4;
-    const next = cur.slice();
-    next.set([0x00, 0x00, 0x00, code], off);
-
-    const k = layout.keys.find(x => x.matrix === idx);
-    const { describeEntry } = window.K652Keys;
-    const before = [...cur.slice(off, off + 4)], after = [...next.slice(off, off + 4)];
-    const diffs = [...next].reduce((n, b, i) => n + (b !== cur[i]), 0);
-    const label = `"${k ? k.name : "?"}" (matriz ${idx}): ${describeEntry(before)} → ${describeEntry(after)}`;
-    pendingWrite = { data: next, label, addr };
-
-    const frame = new Uint8Array([0x04, addr, 0x00, 0x40, 0x00, 0x00, 0x00]);
-    $("dump").textContent =
-      `PRÉVIA DA ESCRITA — nada foi enviado ainda\n\n` +
-      `Tecla ${label}\n` +
-      (dual ? `Tecla com camada Fn (índice 0x${e[3].toString(16)}): muda a entrada FnBase, a função Fn continua igual.\n` : "") +
-      `Offset na matriz: 0x${off.toString(16)}  bytes ${hex(before)} → ${hex(after)}\n` +
-      `Bytes diferentes da leitura atual: ${diffs} (o resto é reenviado exatamente como foi lido)\n\n` +
-      `Quadro: SetFeature report 6, 1031 bytes = [${hex(frame)}] + matriz 0x400\n` +
-      `(formato do app original, sub_4458b0)`;
-    $("btnWrWrite").disabled = false;
-    log(`Escrita preparada: ${label}. Confira o dump e clique em “Gravar e verificar”.`);
-  }
-
+  // SetKeyMatrix (sub_4458b0) com a matriz inteira, depois relê e compara byte a byte
   async function writeAndVerify(data, label, addr) {
-    log(`Gravando: ${label} (endereço 0x${addr.toString(16)})…`, "tx");
+    log(`Gravando: ${label} (modo ${MODES[addr] ?? "?"}, matriz 0x${addr.toString(16)})…`, "tx");
     if (!(await dev.setKeyMatrix(data, addr))) throw new Error("SetKeyMatrix falhou nas 3 tentativas.");
     await sleep(300);
     const back = (await dev.getMatrix(addr))?.data;
-    if (!back) throw new Error("Gravou, mas a releitura não respondeu. Tente GetMatrix manualmente.");
-    tryParseMatrix(back);
+    if (!back) throw new Error("Gravou, mas a releitura não respondeu. Leia o modo de novo.");
+    if (addr === modeAddr) setMatrix(back);
     const bad = [...data].map((b, i) => b !== back[i] ? i : -1).filter(i => i >= 0);
     if (bad.length) {
-      log(`Releitura difere em ${bad.length} bytes (1º offset 0x${bad[0].toString(16)}). Veja o dump.`, "err");
+      log(`Releitura difere em ${bad.length} bytes (1º offset 0x${bad[0].toString(16)}).`, "err");
       return false;
     }
-    log(`OK: releitura idêntica ao que foi gravado. Aperte a tecla para testar (o testador mostra o código).`);
+    log("OK: gravado e conferido. Aperte a tecla para testar.");
     return true;
-  }
-
-  async function writeRemap() {
-    if (!pendingWrite) return log("Prepare a escrita primeiro.", "err");
-    if (!confirm(`Gravar no teclado?\n\n${pendingWrite.label}\n\nDá para desfazer com “Desfazer (restaurar backup)”.`)) return;
-    $("btnWrWrite").disabled = true;
-    const w = pendingWrite;
-    pendingWrite = null;
-    await writeAndVerify(w.data, w.label, w.addr);
   }
 
   // (Reenviar perfil foi removido: o teclado não devolve o perfil no mesmo formato em que recebe —
   //  no teste de 2026-10-21 o reenvio "idêntico" mudou o modo de LED. Ver protocol-notes.md.)
 
   async function restoreBackup() {
-    const addr = matrixAddr();
-    const b = loadBackup(addr);
-    if (!b || b.data.length !== 0x400) return log(`Não há backup do endereço 0x${addr.toString(16)} neste navegador.`, "err");
-    if (!confirm(`Restaurar a matriz 0x${addr.toString(16)} salva em ${b.ts}?`)) return;
-    if (!(await writeAndVerify(b.data, `restauração do backup de ${b.ts}`, b.addr)))
-      return log("Backup mantido no navegador; tente restaurar de novo.", "err");
-    try { localStorage.removeItem(backupKey(addr)); } catch {}
-    showBackupInfo();
-    log("Backup aplicado e removido; o próximo “Preparar” salva um novo.");
+    const b = loadBackup(modeAddr);
+    if (!b || b.data.length !== 0x400) return log(`Não há cópia original do modo ${MODES[modeAddr]} neste navegador.`, "err");
+    if (!confirm(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?`)) return;
+    await writeAndVerify(b.data, `restauração completa do modo ${MODES[modeAddr]}`, modeAddr);
   }
 
-  function tryParseMatrix(data) {
-    // data = 0x400 bytes copiados de resp[7] (como sub_4459d0)
-    matrix = parseMatrix(data);
+  // ---------- remapeador ----------
+  const { CATALOG, encodeChoice, describeEntry } = window.K652Keys;
+  let sel = null;    // { k, layer: "normal" | "fn" }
+  let choice = null; // item do CATALOG
+
+  const entryAt = (data, off) => [...data.slice(off, off + 4)];
+  const sameEntry = (a, b) => a.every((x, i) => x === b[i]);
+
+  function slotOf(k, layer) {
+    const m = matrix?.keys[k.matrix];
+    if (!m) return null;
+    return layer === "fn" ? m.fnOff : m.normalOff;
+  }
+
+  // outras teclas que apontam para o mesmo índice das tabelas Fn (mudar uma mudaria a outra)
+  function sharedWith(k) {
+    const i = matrix.keys[k.matrix].dualIndex;
+    if (i === undefined) return [];
+    return layout.keys.filter(x => x !== k && matrix.keys[x.matrix]?.dualIndex === i);
+  }
+
+  function selectKey(el, k) {
+    document.querySelectorAll(".key.selected").forEach(x => x.classList.remove("selected"));
+    el.classList.add("selected");
+    sel = { k, layer: "normal" };
+    choice = null;
+    renderPanel();
+    if (!matrix) return;
+    const m = matrix.keys[k.matrix];
+    log(`Tecla "${k.name}" (posição ${k.matrix}) — normal: ${m.normal}${m.fn ? ` · com Fn: ${m.fn}` : ""}`);
+  }
+
+  function renderPanel() {
+    const ready = !!(sel && matrix);
+    $("rmEmpty").hidden = ready;
+    $("rmBody").hidden = !ready;
+    if (!ready) {
+      $("rmEmpty").textContent = !dev.connected ? "Conecte o teclado e clique numa tecla do desenho."
+        : !matrix ? `Lendo o modo ${MODES[modeAddr]}…` : "Clique numa tecla do desenho.";
+      return;
+    }
+    const { k, layer } = sel;
+    const m = matrix.keys[k.matrix];
+    if (layer === "fn" && m.fnOff === null) sel.layer = "normal";
+    const off = slotOf(k, sel.layer);
+    const cur = entryAt(matrixData, off);
+    const orig = loadBackup(modeAddr)?.data;
+    const origEntry = orig && entryAt(orig, off);
+
+    $("rmKey").innerHTML = `<strong>${esc(k.name)}</strong> <span class="hint">posição ${k.matrix} · modo ${MODES[modeAddr]}</span>`;
+    document.querySelectorAll("#layerSeg button").forEach(b => {
+      b.classList.toggle("on", b.dataset.layer === sel.layer);
+      b.disabled = b.dataset.layer === "fn" && m.fnOff === null;
+      b.title = b.disabled ? "Esta tecla não tem camada Fn no firmware" : "";
+    });
+    $("rmCurrent").innerHTML =
+      `Agora: <strong>${esc(describeEntry(cur))}</strong>` +
+      (origEntry && !sameEntry(cur, origEntry) ? ` <span class="hint">(original: ${esc(describeEntry(origEntry))})</span>` : "");
+    $("rmResetKey").disabled = !origEntry || sameEntry(cur, origEntry);
+    renderList();
+    renderPreview();
+  }
+
+  function modMask() {
+    return [...document.querySelectorAll("#rmMods input:checked")].reduce((m, i) => m | (1 << +i.dataset.bit), 0);
+  }
+
+  function renderList() {
+    const q = $("rmSearch").value.trim().toLowerCase();
+    const list = $("rmList");
+    list.innerHTML = "";
+    let group = null;
+    for (const item of CATALOG) {
+      if (q && !`${item.label} ${item.group}`.toLowerCase().includes(q)) continue;
+      if (item.group !== group) {
+        group = item.group;
+        const h = document.createElement("div");
+        h.className = "rm-group";
+        h.textContent = group;
+        list.appendChild(h);
+      }
+      const b = document.createElement("button");
+      b.className = "rm-item" + (item === choice ? " on" : "");
+      b.textContent = item.label;
+      b.addEventListener("click", () => { choice = item; renderList(); renderPreview(); });
+      list.appendChild(b);
+    }
+    if (!list.children.length) list.innerHTML = `<div class="hint">Nada encontrado.</div>`;
+  }
+
+  function renderPreview() {
+    const mods = document.querySelectorAll("#rmMods input");
+    mods.forEach(i => (i.disabled = !!choice && !choice.combo));
+    if (!choice) {
+      $("rmPreview").textContent = "Escolha a nova função na lista.";
+      $("rmApply").disabled = true;
+      return;
+    }
+    const off = slotOf(sel.k, sel.layer);
+    const cur = entryAt(matrixData, off);
+    const next = encodeChoice(choice, modMask());
+    const shared = sharedWith(sel.k);
+    const layerName = sel.layer === "fn" ? "Com Fn" : "Normal";
+    $("rmPreview").innerHTML =
+      `${layerName}: <strong>${esc(describeEntry(cur))}</strong> → <strong>${esc(describeEntry(next))}</strong>` +
+      (shared.length ? `<br><span class="warn">Atenção: compartilha a tabela Fn com ${shared.map(x => esc(x.name)).join(", ")}, que também muda.</span>` : "");
+    $("rmApply").disabled = sameEntry(cur, next);
+  }
+
+  // grava uma entrada na matriz do modo atual (relê antes, troca só 4 bytes, grava e confere)
+  async function writeSlot(k, layer, entry, label) {
+    const cur = await readMatrixChecked(modeAddr);
+    if (!loadBackup(modeAddr)) saveBackup(cur, modeAddr);
+    const fresh = parseMatrix(cur).keys[k.matrix];
+    const off = layer === "fn" ? fresh.fnOff : fresh.normalOff;
+    if (off === null) throw new Error("Esta tecla não tem camada Fn.");
+    if (sameEntry(entryAt(cur, off), entry)) { setMatrix(cur); return log("Nada a gravar: a tecla já está assim."); }
+    const next = cur.slice();
+    next.set(entry, off);
+    await writeAndVerify(next, label, modeAddr);
+  }
+
+  async function applyChoice() {
+    if (!sel || !choice) return;
+    const entry = encodeChoice(choice, modMask());
+    const before = describeEntry(entryAt(matrixData, slotOf(sel.k, sel.layer)));
+    await writeSlot(sel.k, sel.layer, entry,
+      `"${sel.k.name}" ${sel.layer === "fn" ? "com Fn" : "normal"}: ${before} → ${describeEntry(entry)}`);
+    choice = null;
+    renderPanel();
+  }
+
+  async function resetKey() {
+    const orig = loadBackup(modeAddr)?.data;
+    if (!sel || !orig) return;
+    const entry = entryAt(orig, slotOf(sel.k, sel.layer));
+    await writeSlot(sel.k, sel.layer, entry, `"${sel.k.name}" de volta ao original (${describeEntry(entry)})`);
+  }
+
+  // texto decodificado no dump do laboratório
+  function appendDecoded(data) {
+    const mx = parseMatrix(data);
     const lines = [];
     for (const k of [...layout.keys].sort((a, b) => a.matrix - b.matrix)) {
-      const m = matrix.keys[k.matrix];
+      const m = mx.keys[k.matrix];
       if (!m) continue;
       lines.push(`${String(k.matrix).padStart(3)}  ${k.name.padEnd(10)} ${m.normal.padEnd(14)}${m.fn ? " Fn: " + m.fn : ""}`);
     }
     $("dump").textContent += "\n\nDecodificado (matriz  tecla  normal  Fn):\n" + lines.join("\n");
-    const nFn = matrix.keys.filter(m => m.fn).length;
-    log(`Matriz decodificada: ${layout.keys.length} teclas do layout, ${nFn} com camada Fn. Marque "mostrar valores da matriz" para ver no teclado.`);
-    showMatrixValues($("chkShowMatrix").checked);
   }
 
   // ---------- caixas de texto: copiar e Cmd/Ctrl+A local ----------
@@ -391,10 +507,16 @@
 
   // ---------- boot ----------
   setupCopyBoxes();
-  showBackupInfo();
   renderKeyboard();
   for (const [id, fn] of Object.entries(actions)) $(id).addEventListener("click", fn);
-  $("chkShowMatrix").addEventListener("change", e => showMatrixValues(e.target.checked));
+  $("chkShowMatrix").addEventListener("change", () => showMatrixValues());
+  document.querySelectorAll("#modeSeg button").forEach(b =>
+    b.addEventListener("click", () => setMode(parseInt(b.dataset.addr, 16))));
+  document.querySelectorAll("#layerSeg button").forEach(b =>
+    b.addEventListener("click", () => { if (sel) { sel.layer = b.dataset.layer; choice = null; renderPanel(); } }));
+  $("rmSearch").addEventListener("input", renderList);
+  $("rmMods").addEventListener("change", renderPreview);
+  setMode(modeAddr);
 
   navigator.hid?.addEventListener?.("disconnect", e => {
     if (dev.owns(e.device)) {

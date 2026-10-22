@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 <header>
@@ -16,15 +16,51 @@
 <main>
   <section id="kbSection">
     <div id="toolbar">
-      <label><input type="checkbox" id="chkShowMatrix"> mostrar valores da matriz</label>
-      <span id="kbHint">Leia a matriz e aperte teclas no teclado físico para localizá-las aqui.</span>
+      <div class="seg" id="modeSeg" role="group" aria-label="Modo do teclado">
+        <button data-addr="d8" class="on">Modo Mac</button>
+        <button data-addr="d4">Modo Windows</button>
+      </div>
+      <label><input type="checkbox" id="chkShowMatrix" checked> mostrar funções nas teclas</label>
+      <span id="kbHint">Clique numa tecla para remapear. Teclas apertadas no teclado físico piscam aqui.</span>
     </div>
     <div id="keyboard"></div>
     <div id="log" class="copyable"></div>
   </section>
 
   <section id="lab">
-    <h2>Laboratório de protocolo</h2>
+    <div class="lab-group remap" id="remap">
+      <h3>Remapear tecla</h3>
+      <div id="rmEmpty" class="hint">Conecte o teclado e clique numa tecla do desenho.</div>
+      <div id="rmBody" hidden>
+        <div id="rmKey" class="rm-key"></div>
+        <div class="seg" id="layerSeg" role="group" aria-label="Camada">
+          <button data-layer="normal" class="on">Normal</button>
+          <button data-layer="fn">Com Fn</button>
+        </div>
+        <div id="rmCurrent" class="rm-current"></div>
+        <input id="rmSearch" type="search" placeholder="Buscar função (ex.: volume, ç, f13)…">
+        <div class="rm-mods" id="rmMods" title="Combinação: vale para letras, números, símbolos, F-keys e navegação">
+          <label><input type="checkbox" data-bit="0"> ⌃ Control</label>
+          <label><input type="checkbox" data-bit="2"> ⌥ Option</label>
+          <label><input type="checkbox" data-bit="1"> ⇧ Shift</label>
+          <label><input type="checkbox" data-bit="3"> ⌘ Command</label>
+        </div>
+        <div id="rmList" class="rm-list"></div>
+        <div id="rmPreview" class="rm-preview"></div>
+        <div class="btn-row">
+          <button id="rmApply" class="primary" disabled>Gravar no teclado</button>
+          <button id="rmResetKey" disabled>Voltar ao original</button>
+        </div>
+      </div>
+      <details class="rm-factory">
+        <summary>Restaurar fábrica</summary>
+        <div id="wrBackupInfo" class="hint">Sem backup salvo ainda.</div>
+        <div class="btn-row"><button id="btnWrUndo">Restaurar o modo selecionado inteiro</button></div>
+      </details>
+    </div>
+
+    <details id="labDetails">
+    <summary><h2>Laboratório de protocolo</h2></summary>
     <div class="lab-group">
       <h3>Leituras seguras</h3>
       <div class="btn-row">
@@ -34,26 +70,9 @@
       </div>
       <div class="raw-row">
         <label>Endereço da matriz (hex) <input id="mxAddr" type="text" value="d8" size="4"></label>
-        <span class="hint" style="align-self:end">D4 = modo Windows · D8 = modo Mac · DC = macros. Vale para leitura e escrita.</span>
+        <span class="hint" style="align-self:end">D4 = modo Windows · D8 = modo Mac · DC = macros. Só leitura.</span>
       </div>
       <pre id="dump" class="dump copyable">— nenhum dump ainda —</pre>
-    </div>
-
-    <div class="lab-group write-group">
-      <h3>Escrita — remapear tecla (experimental)</h3>
-      <div class="raw-row">
-        <label>Matriz <input id="wrIdx" type="number" value="76" min="0" max="131"></label>
-        <label>Código HID (hex) <input id="wrCode" type="text" value="87" size="6"></label>
-      </div>
-      <label class="hint check"><input type="checkbox" id="wrBase"> gravar direto na entrada base (tecla com Fn perde a função Fn)</label>
-      <div class="btn-row">
-        <button id="btnWrPrepare">1. Preparar (lê e mostra)</button>
-        <button id="btnWrWrite" disabled>2. Gravar e verificar</button>
-      </div>
-      <div class="btn-row">
-        <button id="btnWrUndo">Desfazer (restaurar backup)</button>
-      </div>
-      <div id="wrBackupInfo" class="hint">Sem backup salvo ainda.</div>
     </div>
 
     <div class="lab-group">
@@ -75,13 +94,14 @@
       <h3>Coleções HID</h3>
       <pre id="collections" class="dump copyable">—</pre>
     </div>
+    </details>
   </section>
 </main>
 
 
-<script src="layout.js?v=5"></script>
-<script src="protocol.js?v=5"></script>
-<script src="keycodes.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="layout.js?v=8"></script>
+<script src="protocol.js?v=8"></script>
+<script src="keycodes.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
