@@ -250,3 +250,15 @@ Leitura (resp[7..], 254 B) = 8 globais + 2 blocos de 0x7B.
 - Fn+Esc = reset de fábrica (interna 0x05). NÃO usar nos testes: deve apagar os remapeamentos.
 - Fn+1/2/3 = BT, Fn+4 (3 s) = pareamento 2.4G. Fn+Win trava a tecla Win.
 - Ainda sem nome: interna 0x1e (Fn+Tab), 0x10 (Fn+G), 0x12 (Fn+/?).
+
+### Teste 2 (log de 23:27) + capturas do app original
+- Lista de efeitos do app (captura2.jpeg), na ordem = código do byte [5]: 1 Fixed_on, 2 Respire, 3 Rainbow,
+  4 Flash_away, 5 Raindrops, 6 Rainbow_wheel, 7 Ripples_shining, 8 Stars_twinkle, 9 Shadow_disappear,
+  10 Retro_snake, 11 Neon_stream, 12 Reaction, 13 Sine_wave, 14 Retinue scanning, 15 Rotating windmill,
+  16 Colorful waterfall, 17 Blossoming, 18 Rotating storm, 19 Collision, 20 Self-define, 21 OFF, 22 Music mode.
+  Fn+PgUp de 4 a 9 bateu com as descrições do usuário (gotas, roda arco-íris, ondulação a partir da tecla, estrelas, tecla apaga).
+- Brilho = nibble baixo do byte B do efeito atual: Fn+↓ 3× levou 4 → 1, Fn+↑ voltou a 4. Faixa provável 0..4.
+- Velocidade = nibble alto do byte B: Fn+→ em 4 não mudou nada (4 = máximo); Fn+← levou 4 → 0.
+- Fn+PgDn mexe no nibble de cor (byte A) do efeito atual: no efeito 9, 07 → 00 apagou as luzes; depois 00 → 04.
+  Numeração das cores ainda incerta. O app tem 9 cores prontas + RGB livre (R/G/B 0..255), então o RGB deve ser gravado em outro comando.
+- O app original mostra 3 perfis (Profile 1/2/3), mas a leitura 83 B6 traz só 2 blocos. A hipótese "bloco 1 = Windows, bloco 2 = Mac" fica em aberto.

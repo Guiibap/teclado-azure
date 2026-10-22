@@ -9,19 +9,21 @@
 //     [6]  0x20 + grupo · [7] 01 (?) · [0x0c..0x0d] 55 55 (?) · [0x0e..0x0f] 01 02 (?)
 //     [0x14 + 2·n] 2 bytes de parâmetros do efeito n (n = 0..29; o par do efeito 0 é ff ff):
 //        A: nibble baixo = cor, nibble alto = direção
-//        B: nibble baixo = brilho, nibble alto = velocidade
+//        B: nibble baixo = brilho 0..4 (Fn+↑/↓), nibble alto = velocidade 0..4 (Fn+→/←; 4 = máx.)
+//        Fn+PgDn mexe no nibble de cor do efeito atual (07 → 00 → … ; 7 parece ser o padrão colorido)
 //     [0x50..0x59] 04 × 10 (?)
 //     [0x79..0x7a] 5a a5 (marcador de fim)
 // Hipótese: os dois blocos são os modos Windows e Mac (o bloco 2 está ativo e o teclado está no modo Mac).
 
 const PROFILE_STRIDE = 0x7b;
 
-// tc_led_mode1..22 do text.xml, na ordem das linhas LedOpt1..22 do cfg.ini
+// Ordem da lista "Light" do app original (captura2.jpeg) = código gravado no byte [5] do bloco.
+// Confirmado ao vivo de 4 a 9, 11 e 13 (descrições do usuário batem com os nomes).
 const LED_EFFECTS = [
   null, "Fixo", "Respirar", "Arco-íris", "Flash que some", "Gotas de chuva", "Roda arco-íris",
-  "Ondas brilhando", "Estrelas piscando", "Sombra sumindo", "Cobra retrô", "Fluxo neon", "Reação",
+  "Ondulações", "Estrelas piscando", "Sombra que some", "Cobra retrô", "Fluxo neon", "Reação",
   "Onda senoidal", "Varredura", "Moinho girando", "Cascata colorida", "Florescer", "Tempestade girando",
-  "Colisão", "Perfeito", "Personalizado", "Desligado",
+  "Colisão", "Personalizado", "Desligado", "Modo música",
 ];
 
 function effectName(i) { return LED_EFFECTS[i] ?? `efeito ${i}`; }
