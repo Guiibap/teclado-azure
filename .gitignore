@@ -1,8 +1,16 @@
 .DS_Store
 
-# Binários do fabricante (instalador e executáveis extraídos): ficam só locais
+# Arquivos do fabricante (instalador, executáveis, arquivos extraídos, manual): ficam só locais
 windows-binary/
-extracted/**/*.exe
-extracted/**/*.dll
-extracted/**/*.ico
-extracted/app/skins/
+arquivos_instalacao_windows/
+extracted/
+manual teclado azure.pdf
+
+# Fotos e capturas de tela na raiz
+/*.jpg
+/*.jpeg
+/*.png
+
+# Saídas locais de depuração e da engenharia reversa
+logs_debug/
+analysis/rea-evidence.json
