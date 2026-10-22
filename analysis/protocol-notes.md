@@ -328,3 +328,8 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
   0x1f8 + 0x15·n, e as 23 linhas vão até 0x3da. Ficam livres 0x1e3–0x1f7 (uma linha) e 0x3db–0x3ff.
 - Cópia da paleta do Windows para 0x1f8 gravada e testada (2026-10-22): no Mac, o Fixo passou a ciclar pelas mesmas cores
   do Windows. Seletor "Cores do modo Mac" no app: lê e grava só a linha 0x1f8 + 0x15·efeito (7 × RGB).
+
+## Gravação de brilho e velocidade (2026-10-22, experimental)
+- O app lê o perfil, muda só o byte B do efeito atual no bloco ativo e grava com SetProfile no formato de escrita
+  do app original: 8 globais + os primeiros 0x40 bytes de cada bloco (= 0x88). Depois relê e lista qualquer byte
+  que não bata com o esperado. Ainda não testado no teclado.

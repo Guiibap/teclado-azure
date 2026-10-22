@@ -237,6 +237,27 @@
       if (await writePalette(next, `cores do efeito ${fx} no Mac`))
         log("No modo Mac, nesse efeito, Fn+PgDn passa pelas 7 cores na ordem dos quadradinhos.", "note");
     }),
+    bsRead: () => act(async () => {
+      const cur = parseProfile(await readProfileData()).profiles.find(p => p.active);
+      if (!cur || cur.brightness === null) return log("Não achei o bloco ativo ou o efeito atual no perfil.", "err");
+      $("bsBright").value = $("bsBrightV").value = cur.brightness;
+      $("bsSpeed").value = $("bsSpeedV").value = cur.speed;
+      showBs(cur);
+    }),
+    bsWrite: () => act(async () => {
+      const data = await readProfileData();
+      const n = data[0], blk = 8 + n * PROFILE_STRIDE, fx = data[blk + 5];
+      if (n > 1 || fx < 1 || fx > 29) return log(`Perfil inesperado (bloco ${n + 1}, efeito ${fx}). Nada foi gravado.`, "err");
+      const off = blk + 0x15 + 2 * fx; // byte B do efeito atual: brilho | velocidade << 4
+      const b = clampBs($("bsBright").value) | (clampBs($("bsSpeed").value) << 4);
+      if (data[off] === b) return log("Brilho e velocidade já são esses. Nada a fazer.");
+      const want = data.slice(); want[off] = b;
+      await writeProfile(data, want, `brilho ${b & 0xf} e velocidade ${b >> 4} do efeito ${fx} (${effectName(fx)}), bloco ${n + 1}`);
+    }),
+    bsUndo: () => act(async () => {
+      if (!bsBefore) return log("Nada para desfazer nesta sessão.", "err");
+      await writeProfile(await readProfileData(), bsBefore, "desfazer a última gravação do perfil");
+    }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
       if (!b) return log("Não há backup da paleta neste navegador.", "err");
@@ -373,7 +394,7 @@
   }
 
   // ---------- iluminação (leitura) ----------
-  const { parseProfile, effectName, describeOffset } = window.K652Lighting;
+  const { parseProfile, effectName, describeOffset, PROFILE_STRIDE } = window.K652Lighting;
   let profileSnap = null;
   const hx = b => b === undefined ? "--" : b.toString(16).padStart(2, "0");
 
@@ -428,6 +449,50 @@
     const r = await dev.getProfile();
     if (!r || !r.echoOk) throw new Error("GetProfile sem resposta válida.");
     return r.raw.slice(7); // perfil inteiro (8 globais + 2 × 0x7B), não só os 0x88 do app original
+  }
+
+  // ---------- gravação do perfil (SetProfile 03 B6) ----------
+  // Leitura = 8 globais + 2 blocos de 0x7B; o app original monta a escrita com 0x40 bytes por bloco (sub_40d240,
+  // "Cfg(Save-Pro1)" 0x40) = 0x88. Em 2026-10-21 reenviar os 0x88 primeiros bytes da leitura bagunçou o perfil,
+  // então aqui vai o formato de escrita: globais + 0x40 de cada bloco. Experimental: confere tudo na releitura.
+  let bsBefore = null;
+  const clampBs = v => Math.max(0, Math.min(4, parseInt(v, 10) || 0));
+  const PROFILE_BACKUP = "k652.profileBackup";
+  function packProfile(data) {
+    const out = new Uint8Array(0x88);
+    out.set(data.slice(0, 8), 0);
+    for (let n = 0; n < 2; n++) out.set(data.slice(8 + n * PROFILE_STRIDE, 8 + n * PROFILE_STRIDE + 0x40), 8 + n * 0x40);
+    return out;
+  }
+  function showBs(p) {
+    $("bsInfo").textContent = `Bloco ativo, efeito ${p.effect} (${effectName(p.effect)}): brilho ${p.brightness}, velocidade ${p.speed}.`;
+  }
+  async function writeProfile(before, want, label) {
+    try { if (!localStorage.getItem(PROFILE_BACKUP))
+      localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...before] })); } catch {}
+    const changes = [...want].map((b, i) => b !== before[i] ? i : -1).filter(i => i >= 0);
+    if (changes.some(i => (i - 8) % PROFILE_STRIDE >= 0x40))
+      throw new Error("A mudança cai fora dos 0x40 bytes que a escrita leva. Nada foi gravado.");
+    const pkt = packProfile(want);
+    log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, 0x88 bytes:\n` +
+      Array.from({ length: 0x88 / 16 + 1 }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
+      "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
+    if (!confirm(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: é a primeira gravação de perfil neste formato ` +
+      `(a tentativa de 21/10 em outro formato bagunçou a luz). O app relê e mostra tudo o que mudou; ` +
+      `“Desfazer” regrava o perfil anterior. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`))
+      return log("Cancelado, nada foi gravado.");
+    log(`Gravando perfil: ${label} (03 B6)…`, "tx");
+    if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
+    await sleep(300);
+    const back = await readProfileData();
+    const diff = [...back].map((b, i) => b !== want[i] ? i : -1).filter(i => i >= 0);
+    bsBefore = before;
+    if (!diff.length) log("OK: perfil gravado e conferido, só mudou o que devia.");
+    else log(`Releitura difere do esperado em ${diff.length} bytes:\n` + diff.map(i =>
+      `  0x${i.toString(16).padStart(3, "0")}  esperado ${hx(want[i])}, veio ${hx(back[i])}   ${describeOffset(i)}`).join("\n") +
+      "\nCopie este log para mim. “Desfazer” tenta voltar ao anterior.", "err");
+    const p = parseProfile(back).profiles.find(q => q.active);
+    if (p) showBs(p);
   }
 
   function showProfile(data, prefix = "") {
@@ -722,6 +787,7 @@
   K652Lighting.LED_EFFECTS.forEach((name, n) => { if (n) $("macFx").add(new Option(`${n} ${name}`, n)); });
   $("macColors").innerHTML = Array.from({ length: 7 }, (_, i) =>
     `<label>${i + 1}<input type="color" value="#000000" title="Cor ${i + 1} (Fn+PgDn)"></label>`).join("");
+  ["bsBright", "bsSpeed"].forEach(id => $(id).addEventListener("input", () => ($(id + "V").value = $(id).value)));
   $("macFx").addEventListener("change", () => dev.connected && actions.macRead());
   $("ltNote").addEventListener("keydown", e => { if (e.key === "Enter") actions.ltDiff(); });
   $("chkShowMatrix").addEventListener("change", () => showMatrixValues());
