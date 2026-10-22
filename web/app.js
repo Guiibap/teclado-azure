@@ -341,6 +341,7 @@
     list.innerHTML = "";
     let group = null;
     for (const item of CATALOG) {
+      if (item.modes && !item.modes.includes(modeAddr)) continue;
       if (q && !`${item.label} ${item.group}`.toLowerCase().includes(q)) continue;
       if (item.group !== group) {
         group = item.group;
@@ -352,15 +353,28 @@
       const b = document.createElement("button");
       b.className = "rm-item" + (item === choice ? " on" : "");
       b.textContent = item.label;
-      b.addEventListener("click", () => { choice = item; renderList(); renderPreview(); });
+      b.addEventListener("click", () => {
+        if (choice !== item) document.querySelectorAll("#rmMods input").forEach(i => (i.checked = false));
+        choice = item; renderList(); renderPreview();
+      });
       list.appendChild(b);
     }
     if (!list.children.length) list.innerHTML = `<div class="hint">Nada encontrado.</div>`;
   }
 
+  // teclas (posição do layout) cuja função normal é Fn, olhando a matriz atual
+  function fnKeys() {
+    return layout.keys.filter(x => {
+      const m = matrix.keys[x.matrix];
+      return m && matrixData[m.normalOff] === window.K652Keys.KEY_TYPE.FN;
+    });
+  }
+
   function renderPreview() {
-    const mods = document.querySelectorAll("#rmMods input");
-    mods.forEach(i => (i.disabled = !!choice && !choice.combo));
+    // atalho só faz sentido para teclas comuns (letras, números, símbolos, F-keys, navegação)
+    $("rmCombo").hidden = !(choice && choice.combo && choice.bytes[3]);
+    if (choice) $("rmComboHint").textContent =
+      `Marque os modificadores que devem ir junto: ex. ⌘ + ⇧ com “${choice.label}” faz a tecla mandar ⇧⌘${choice.label.split(" ")[0]} com um toque só.`;
     if (!choice) {
       $("rmPreview").textContent = "Escolha a nova função na lista.";
       $("rmApply").disabled = true;
@@ -371,9 +385,15 @@
     const next = encodeChoice(choice, modMask());
     const shared = sharedWith(sel.k);
     const layerName = sel.layer === "fn" ? "Com Fn" : "Normal";
+    const FN = window.K652Keys.KEY_TYPE.FN;
+    // tirar o Fn da última tecla que o tem deixa sem mídia/LED/Bluetooth até colocar o Fn em outra
+    const losesFn = sel.layer === "normal" && cur[0] === FN && next[0] !== FN && fnKeys().length <= 1;
+    const warns = [];
+    if (shared.length) warns.push(`Compartilha a tabela Fn com ${shared.map(x => esc(x.name)).join(", ")}, que também muda.`);
+    if (losesFn) warns.push("Esta é a única tecla Fn: depois de gravar, as funções com Fn (mídia, LED, Bluetooth) só voltam quando você puser o Fn em outra tecla. Dá para fazer isso aqui mesmo, sem precisar do Fn.");
     $("rmPreview").innerHTML =
       `${layerName}: <strong>${esc(describeEntry(cur))}</strong> → <strong>${esc(describeEntry(next))}</strong>` +
-      (shared.length ? `<br><span class="warn">Atenção: compartilha a tabela Fn com ${shared.map(x => esc(x.name)).join(", ")}, que também muda.</span>` : "");
+      warns.map(w => `<br><span class="warn">${w}</span>`).join("");
     $("rmApply").disabled = sameEntry(cur, next);
   }
 

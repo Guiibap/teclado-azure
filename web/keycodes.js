@@ -117,6 +117,9 @@ const CATALOG = (() => {
   for (let i = 0; i < 12; i++) key("F1–F12", 0x3a + i);
   for (let i = 0; i < 8; i++) key("F13–F20 (bons para atalhos)", 0x68 + i);
   [0x46, 0x47, 0x48].forEach(c => key("Sistema", c));
+  // Fn: na tabela do modo Mac (D8) a tecla Fn é a entrada tipo 0x20. Na do Windows (D4) a posição do Fn
+  // guarda só um E3, então o firmware deve tratá-la pela posição — por isso o item só aparece no Mac.
+  out.push({ group: "Modificadores", label: "Fn", bytes: [KEY_TYPE.FN, 0, 0, 0], modes: [0xd8] });
   for (let c = 0xe0; c <= 0xe7; c++) out.push({ group: "Modificadores", label: HID_NAMES[c], bytes: [KEY_TYPE.MODIFIER, 0, 0, c] });
   for (const u of [0xcd, 0xb6, 0xb5, 0xe2, 0xea, 0xe9, 0x6f, 0x70, 0xcf, 0x221, 0x223, 0x224, 0x225, 0x192])
     out.push({ group: "Mídia e sistema", label: CONSUMER_NAMES[u], bytes: [KEY_TYPE.CONSUMER, 0, u >> 8, u & 0xff] });

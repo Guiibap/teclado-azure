@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K652 RGB PRO — Web Config</title>
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
 <header>
@@ -39,13 +39,17 @@
         </div>
         <div id="rmCurrent" class="rm-current"></div>
         <input id="rmSearch" type="search" placeholder="Buscar função (ex.: volume, ç, f13)…">
-        <div class="rm-mods" id="rmMods" title="Combinação: vale para letras, números, símbolos, F-keys e navegação">
-          <label><input type="checkbox" data-bit="0"> ⌃ Control</label>
-          <label><input type="checkbox" data-bit="2"> ⌥ Option</label>
-          <label><input type="checkbox" data-bit="1"> ⇧ Shift</label>
-          <label><input type="checkbox" data-bit="3"> ⌘ Command</label>
-        </div>
         <div id="rmList" class="rm-list"></div>
+        <div class="rm-combo" id="rmCombo" hidden>
+          <div class="rm-combo-title">Transformar em atalho <span class="hint">(opcional)</span></div>
+          <div class="hint" id="rmComboHint"></div>
+          <div class="rm-mods" id="rmMods">
+            <label><input type="checkbox" data-bit="0"> ⌃ Control</label>
+            <label><input type="checkbox" data-bit="2"> ⌥ Option</label>
+            <label><input type="checkbox" data-bit="1"> ⇧ Shift</label>
+            <label><input type="checkbox" data-bit="3"> ⌘ Command</label>
+          </div>
+        </div>
         <div id="rmPreview" class="rm-preview"></div>
         <div class="btn-row">
           <button id="rmApply" class="primary" disabled>Gravar no teclado</button>
@@ -99,9 +103,9 @@
 </main>
 
 
-<script src="layout.js?v=8"></script>
-<script src="protocol.js?v=8"></script>
-<script src="keycodes.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="layout.js?v=9"></script>
+<script src="protocol.js?v=9"></script>
+<script src="keycodes.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
