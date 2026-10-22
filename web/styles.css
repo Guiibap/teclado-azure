@@ -376,6 +376,22 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 24px 48px; display: flex
 .ui-color-preset[data-c="#000000"] { background: repeating-linear-gradient(135deg, #0d0d0d 0 3px, #222 3px 6px); }
 .ui-color-preset:hover { transform: scale(1.12); }
 
+/* ---------- backups ---------- */
+.bk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; }
+.bk-list:empty { display: none; }
+.bk-item { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: var(--surface); }
+.bk-item + .bk-item { border-top: 1px solid var(--hairline); }
+.bk-head { padding: 8px 16px; background: var(--surface-elevated); font-size: 12px; color: var(--mute); letter-spacing: .4px; }
+.bk-item + .bk-head { border-top: 1px solid var(--hairline); }
+.bk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bk-top { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.bk-top time { white-space: nowrap; }
+.bk-badge { padding: 2px 6px; border-radius: var(--r-xs); background: var(--surface-elevated); color: var(--body); font-size: 11px; letter-spacing: .4px; }
+.bk-desc { font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+.bk-parts { font-size: 12px; color: var(--mute); }
+.bk-actions { display: flex; gap: 4px; flex: none; }
+.bk-empty { padding: 24px 16px; text-align: center; font-size: 13px; color: var(--mute); background: var(--surface); }
+
 /* ---------- remapeador ---------- */
 .card.remap { padding: 0; overflow: hidden; }
 .empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; text-align: center; color: var(--mute); }

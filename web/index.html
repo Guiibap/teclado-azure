@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="styles.css?v=35">
+<link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 <header class="topbar">
@@ -60,6 +60,7 @@
     <button type="button" data-tab="keys" id="tab-keys" aria-controls="panel-keys"><span data-icon="command"></span>Teclas</button>
     <button type="button" data-tab="light" id="tab-light" aria-controls="panel-light"><span data-icon="lightbulb"></span>Iluminação</button>
     <button type="button" data-tab="adv" id="tab-adv" aria-controls="panel-adv"><span data-icon="terminal"></span>Avançado</button>
+    <button type="button" data-tab="backup" id="tab-backup" aria-controls="panel-backup"><span data-icon="archive"></span>Backup</button>
   </nav>
 
   <!-- ===================== Teclas ===================== -->
@@ -230,18 +231,34 @@
       </div>
     </div>
   </section>
+
+  <!-- ===================== Backup ===================== -->
+  <section id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" class="panel" hidden>
+    <div class="card">
+      <div class="card-head"><h2><span data-icon="archive"></span>Backups</h2></div>
+      <p class="hint">Antes de cada gravação, o app guarda aqui o estado anterior do que vai mudar. Os backups ficam só neste
+        navegador: limpar os dados do site apaga a lista.</p>
+      <div class="field-inline">
+        <input id="bkName" class="ui-input grow" type="text" autocomplete="off" maxlength="80"
+          placeholder="Nome (opcional)" aria-label="Nome do backup">
+        <button type="button" id="bkNew" class="btn primary"><span data-icon="save"></span>Fazer backup agora</button>
+      </div>
+      <p class="hint">O backup manual lê do teclado as teclas dos modos Mac e Windows, as cores e o efeito com brilho e velocidade.</p>
+      <ul id="bkList" class="bk-list" aria-label="Backups salvos"></ul>
+    </div>
+  </section>
 </main>
 
 <footer class="foot">
   Projeto independente, sem ligação com a Redragon. Funciona no Chrome e no Edge (WebHID).
 </footer>
 
-<script src="icons.js?v=35"></script>
-<script src="ui.js?v=35"></script>
-<script src="layout.js?v=35"></script>
-<script src="protocol.js?v=35"></script>
-<script src="keycodes.js?v=35"></script>
-<script src="lighting.js?v=35"></script>
-<script src="app.js?v=35"></script>
+<script src="icons.js?v=37"></script>
+<script src="ui.js?v=37"></script>
+<script src="layout.js?v=37"></script>
+<script src="protocol.js?v=37"></script>
+<script src="keycodes.js?v=37"></script>
+<script src="lighting.js?v=37"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>

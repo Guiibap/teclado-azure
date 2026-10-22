@@ -389,10 +389,10 @@
   }
 
   // ---------- diálogo de confirmação (no lugar de confirm()) ----------
-  // A 1ª linha da mensagem vira o título; o resto, o corpo. Todo diálogo grava no teclado, então leva o aviso.
+  // A 1ª linha da mensagem vira o título; o resto, o corpo. Diálogos que gravam no teclado levam o aviso.
   const DISCLAIMER = "Feito a partir da análise e do estudo do software original do teclado. " +
     "O autor não se responsabiliza por danos ao teclado: use por sua conta e risco.";
-  function ask(message, { confirm = "Gravar", cancel = "Cancelar", danger = false } = {}) {
+  function ask(message, { confirm = "Gravar", cancel = "Cancelar", danger = false, disclaimer = true } = {}) {
     const [title, ...rest] = message.split("\n");
     const body = rest.join("\n").trim();
     return new Promise(resolve => {
@@ -404,7 +404,7 @@
         `<div class="ui-dialog" role="alertdialog" aria-modal="true" aria-labelledby="${tid}" ${body ? `aria-describedby="${tid}-b"` : ""}>` +
         `<div class="ui-dialog-icon${danger ? " danger" : ""}">${icon(danger ? "triangle-alert" : "save", 18)}</div>` +
         `<h2 id="${tid}"></h2>${body ? `<div class="ui-dialog-body" id="${tid}-b"></div>` : ""}` +
-        `<p class="disclaimer">${icon("triangle-alert", 14)}<span>${DISCLAIMER}</span></p>` +
+        (disclaimer ? `<p class="disclaimer">${icon("triangle-alert", 14)}<span>${DISCLAIMER}</span></p>` : "") +
         `<div class="ui-dialog-actions"><button type="button" class="btn ghost" data-r="0">${cancel}</button>` +
         `<button type="button" class="btn ${danger ? "danger" : "primary"}" data-r="1">${confirm}</button></div></div>`;
       ov.querySelector("h2").textContent = title;

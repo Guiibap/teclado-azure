@@ -236,6 +236,7 @@
       log(`Prévia: cabeçalho 08 b8 00 40 00 00 00, Fixo do Mac em 0x${(PAL_MAC_BASE + 0x15).toString(16)}: ` +
         hex(next.slice(PAL_MAC_BASE + 0x15, PAL_MAC_BASE + 0x2a)), "note");
       if (!(await UI.ask(msg))) return log("Cancelado, nada foi gravado.");
+      autoBackup({ palette: cur }, "Antes de copiar a paleta do Windows para o Mac");
       if (await writePalette(next, "cópia da paleta do Windows para o Mac"))
         log("No modo Mac, Fixo + Fn+PgDn deve passar pelas mesmas cores do Windows (branco, azul, verde…).", "note");
     }),
@@ -257,7 +258,8 @@
       log(`Prévia (efeito ${fx}, 0x${off.toString(16)}–0x${(off + 0x14).toString(16)}):\n  antes  ${hex(old)}\n  depois ${hex(row)}`, "note");
       if (!(await UI.ask(`Gravar as 7 cores do efeito ${fx} (${effectName(fx)}) no modo Mac?\n\n` +
         `Só os 21 bytes em 0x${off.toString(16)}–0x${(off + 0x14).toString(16)} mudam; o resto da tabela fica igual.\n` +
-        `Para desfazer, grave as cores antigas (estão no log) ou use “Restaurar paleta”.`))) return log("Cancelado, nada foi gravado.");
+        `Para desfazer, use a aba Backup ou “Restaurar paleta”.`))) return log("Cancelado, nada foi gravado.");
+      autoBackup({ palette: cur }, `Antes de alterar as cores do efeito ${fx} (${effectName(fx)}) no Mac`);
       if (await writePalette(next, `cores do efeito ${fx} no Mac`))
         log("No modo Mac, nesse efeito, Fn+PgDn passa pelas 7 cores na ordem dos quadradinhos.", "note");
     }),
@@ -276,7 +278,8 @@
       if (data[blk + 5] === fx && data[blk + 4] === 0) return log(`O efeito já é ${effectName(fx)}. Nada a fazer.`);
       // [4] = 0: sai do modo personalizado (Fn+End), como o sub_40d240 faz para qualquer efeito pronto
       const want = data.slice(); want[blk + 5] = fx; want[blk + 4] = 0;
-      await writeProfile(data, want, `efeito ${effectName(data[blk + 5])} → ${effectName(fx)}, bloco ${n + 1}`);
+      await writeProfile(data, want, `efeito ${effectName(data[blk + 5])} → ${effectName(fx)}, bloco ${n + 1}`,
+        { desc: `Antes de alterar o efeito de ${effectName(data[blk + 5])} para ${effectName(fx)}` });
     }),
     bsWrite: () => act(async () => {
       const data = await readProfileData();
@@ -286,21 +289,25 @@
       const b = clampBs($("bsBright").value) | (clampBs($("bsSpeed").value) << 4);
       if (data[off] === b) return log("Brilho e velocidade já são esses. Nada a fazer.");
       const want = data.slice(); want[off] = b;
-      await writeProfile(data, want, `brilho ${b & 0xf} e velocidade ${b >> 4} do efeito ${fx} (${effectName(fx)}), bloco ${n + 1}`);
+      await writeProfile(data, want, `brilho ${b & 0xf} e velocidade ${b >> 4} do efeito ${fx} (${effectName(fx)}), bloco ${n + 1}`,
+        { desc: `Antes de alterar brilho e velocidade do efeito ${fx} (${effectName(fx)})` });
     }),
     bsUndo: () => act(async () => {
       if (!bsBefore) return log("Nada para desfazer nesta sessão.", "err");
-      await writeProfile(await readProfileData(), bsBefore, "desfazer a última gravação do perfil");
+      await writeProfile(await readProfileData(), bsBefore, "desfazer a última gravação do perfil",
+        { desc: "Antes de desfazer a última gravação do efeito" });
     }),
     bsRestore: () => act(async () => {
       const b = loadProfileBackup();
       if (!b) return log("Não há backup do perfil neste navegador.", "err");
-      await writeProfile(await readProfileData(), b.data, `restaurar o perfil salvo em ${b.ts}`);
+      await writeProfile(await readProfileData(), b.data, `restaurar o perfil salvo em ${b.ts}`,
+        { desc: "Antes de restaurar o efeito original" });
     }),
     ltPalRestore: () => act(async () => {
       const b = loadPalBackup();
       if (!b) return log("Não há backup da paleta neste navegador.", "err");
       if (!(await UI.ask(`Restaurar a tabela de cores para a cópia salva em ${b.ts}?`, { confirm: "Restaurar", danger: true }))) return;
+      autoBackup(await readParts(["palette"]), "Antes de restaurar a paleta original");
       await writePalette(b.data, "restauração da paleta");
     }),
     ltSnap: () => act(async () => {
@@ -325,6 +332,7 @@
     }),
     rmApply: () => act(applyChoice),
     rmResetKey: () => act(resetKey),
+    bkNew: () => act(manualBackup),
   };
 
   // ---------- modo (tabela de teclas) ----------
@@ -430,6 +438,7 @@
     if (!b || b.data.length !== 0x400) return log(`Não há cópia original do modo ${MODES[modeAddr]} neste navegador.`, "err");
     if (!(await UI.ask(`Restaurar o modo ${MODES[modeAddr]} inteiro para a cópia salva em ${b.ts}?\n` +
       "Todas as teclas desse modo voltam ao que eram na primeira leitura.", { confirm: "Restaurar", danger: true }))) return;
+    autoBackup(await readParts([matrixPart(modeAddr)]), `Antes de restaurar as teclas do modo ${MODES[modeAddr]} ao original`);
     await writeAndVerify(b.data, `restauração completa do modo ${MODES[modeAddr]}`, modeAddr);
   }
 
@@ -514,7 +523,8 @@
   function showBs(p) {
     $("bsInfo").textContent = `Bloco ativo, efeito ${p.effect} (${effectName(p.effect)}): brilho ${p.brightness}, velocidade ${p.speed}.`;
   }
-  async function writeProfile(before, want, label) {
+  // desc: descrição do backup automático (null = quem chamou já fez o backup); confirmed: pula o diálogo
+  async function writeProfile(before, want, label, { desc = `Antes de alterar ${label}`, confirmed = false } = {}) {
     try { if (!localStorage.getItem(PROFILE_BACKUP))
       localStorage.setItem(PROFILE_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...before] })); } catch {}
     const changes = [...want].map((b, i) => b !== before[i] ? i : -1).filter(i => i >= 0);
@@ -522,10 +532,11 @@
     log(`Prévia SetProfile: cabeçalho 03 b6 00 00 00 00 00, ${pkt.length} bytes (formato da leitura):\n` +
       Array.from({ length: Math.ceil(pkt.length / 16) }, (_, r) => "  " + hex(pkt.slice(r * 16, r * 16 + 16))).join("\n") +
       "\nMudanças: " + changes.map(i => `0x${i.toString(16)} ${hx(before[i])}→${hx(want[i])} (${describeOffset(i)})`).join(", "), "note");
-    if (!(await UI.ask(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
+    if (!confirmed && !(await UI.ask(`Gravar no perfil: ${label}?\n\nEXPERIMENTAL: grava o perfil inteiro no mesmo formato em que o teclado ` +
       `o devolve (as tentativas anteriores, no formato curto do app do Windows, voltaram a luz ao padrão). O app relê e mostra tudo o que mudou; ` +
       `“Desfazer” regrava o perfil anterior e “Restaurar original” volta ao de antes de qualquer gravação. No pior caso, Fn+setas e Fn+PgUp/PgDn ajustam a luz pelo teclado.`, { danger: true })))
       return log("Cancelado, nada foi gravado.");
+    if (desc) autoBackup({ profile: before }, desc);
     log(`Gravando perfil: ${label} (03 B6)…`, "tx");
     if (!(await dev.setProfile(pkt))) throw new Error("SetProfile falhou nas 3 tentativas.");
     await sleep(300);
@@ -553,6 +564,105 @@
     $("ltOut").textContent = out;
     return out;
   }
+
+  // ---------- histórico de backups (aba Backup) ----------
+  // Antes de cada gravação o app guarda o estado que vai mudar ("Antes de …"); o backup manual lê tudo.
+  // Fica no localStorage deste navegador, o mais recente primeiro. As cópias originais (1ª leitura) aparecem no fim.
+  const HISTORY = "k652.history";
+  const HISTORY_MAX = 60;
+  const PARTS = { d8: "Teclas do Mac", d4: "Teclas do Windows", palette: "Cores", profile: "Efeito e brilho" };
+  const matrixPart = addr => addr.toString(16); // "d8" | "d4"
+  const fmtTs = ts => { const d = new Date(ts); return isNaN(d) ? ts : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }); };
+
+  function loadHistory() {
+    try { const h = JSON.parse(localStorage.getItem(HISTORY)); return Array.isArray(h) ? h : []; } catch { return []; }
+  }
+  // sem espaço no navegador: descarta o automático mais antigo e tenta de novo
+  function saveHistory(h) {
+    for (;;) {
+      try { localStorage.setItem(HISTORY, JSON.stringify(h)); return true; }
+      catch (e) {
+        const i = h.findLastIndex(b => b.auto);
+        if (i < 0) { log("Não consegui salvar o backup no navegador: " + e.message, "err"); return false; }
+        h.splice(i, 1);
+      }
+    }
+  }
+  function addBackup(parts, desc, auto) {
+    const h = loadHistory();
+    h.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), auto, desc,
+      parts: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, hex(v, "")])) });
+    while (h.length > HISTORY_MAX) { const i = h.findLastIndex(b => b.auto); h.splice(i < 0 ? h.length - 1 : i, 1); }
+    if (saveHistory(h)) log(`Backup salvo: ${desc}.`);
+    renderHistory();
+  }
+  const autoBackup = (parts, desc) => addBackup(parts, desc, true);
+
+  // strict: só aceita leituras que passam nas travas (backup manual); senão guarda o que vier (estado antes de restaurar)
+  async function readParts(keys, strict = false) {
+    const out = {};
+    for (const k of keys) {
+      if (k === "palette") out[k] = strict ? await readPalette() : (await dev.readTable(0x88, 0xb8))?.data;
+      else if (k === "profile") out[k] = await readProfileData();
+      else out[k] = strict ? await readMatrixChecked(parseInt(k, 16)) : (await dev.getMatrix(parseInt(k, 16)))?.data;
+      if (!out[k]?.length) throw new Error(`Não consegui ler ${PARTS[k]} do teclado. Nada foi gravado.`);
+    }
+    return out;
+  }
+
+  function originals() {
+    return [
+      ...Object.keys(MODES).map(a => [loadBackup(+a), matrixPart(+a), `Teclas do modo ${MODES[a]} na 1ª leitura`]),
+      [loadPalBackup(), "palette", "Cores antes da 1ª gravação"],
+      [loadProfileBackup(), "profile", "Efeito e brilho antes da 1ª gravação"],
+    ].filter(([b]) => b?.data?.length).map(([b, k, desc]) => ({ id: "orig-" + k, ts: b.ts, orig: true, desc, parts: { [k]: hex(b.data, "") } }));
+  }
+
+  function renderHistory() {
+    const h = loadHistory(), orig = originals();
+    const item = b => `<li class="bk-item"><div class="bk-main">` +
+      `<div class="bk-top"><span class="bk-badge">${b.orig ? "Original" : b.auto ? "Automático" : "Manual"}</span><time>${esc(fmtTs(b.ts))}</time></div>` +
+      `<div class="bk-desc">${esc(b.desc)}</div><div class="bk-parts">${Object.keys(b.parts).map(k => PARTS[k]).join(" · ")}</div></div>` +
+      `<div class="bk-actions"><button type="button" class="btn sm" data-restore="${b.id}">${icon("archive-restore", 14)}Restaurar</button>` +
+      (b.orig ? "" : `<button type="button" class="btn ghost sm" data-del="${b.id}" aria-label="Excluir backup" title="Excluir">${icon("trash-2", 14)}</button>`) +
+      `</div></li>`;
+    $("bkList").innerHTML =
+      (h.length ? h.map(item).join("") : `<li class="bk-empty">Nenhum backup ainda. Eles aparecem aqui a cada gravação, ou clique em “Fazer backup agora”.</li>`) +
+      (orig.length ? `<li class="bk-head">Cópias originais</li>` + orig.map(item).join("") : "");
+  }
+
+  async function restoreEntry(b) {
+    const keys = Object.keys(b.parts);
+    if (!(await UI.ask(`Restaurar o backup de ${fmtTs(b.ts)}?\n${b.desc}\n\nVolta para o teclado: ${keys.map(k => PARTS[k]).join(", ")}. ` +
+      "Antes, o estado atual vira um backup novo.", { confirm: "Restaurar", danger: true }))) return log("Cancelado, nada foi gravado.");
+    const now = await readParts(keys);
+    autoBackup(now, `Antes de restaurar o backup de ${fmtTs(b.ts)}`);
+    for (const k of keys) {
+      const data = parseHex(b.parts[k]);
+      if (k === "palette") await writePalette(data, `restauração das cores (${fmtTs(b.ts)})`);
+      else if (k === "profile") await writeProfile(now.profile, data, `restaurar o efeito de ${fmtTs(b.ts)}`, { desc: null, confirmed: true });
+      else await writeAndVerify(data, `restauração das teclas (${fmtTs(b.ts)})`, parseInt(k, 16));
+    }
+  }
+
+  async function manualBackup() {
+    const name = $("bkName").value.trim();
+    log("Lendo tudo do teclado para o backup…", "tx");
+    addBackup(await readParts(["d8", "d4", "palette", "profile"], true), name || "Backup manual", false);
+    $("bkName").value = "";
+  }
+
+  $("bkList").addEventListener("click", async e => {
+    const r = e.target.closest("[data-restore]"), d = e.target.closest("[data-del]");
+    const find = id => [...loadHistory(), ...originals()].find(b => b.id === id);
+    if (r) { const b = find(r.dataset.restore); if (b) act(() => restoreEntry(b)); }
+    if (d) {
+      const b = find(d.dataset.del);
+      if (!b || !(await UI.ask(`Excluir o backup de ${fmtTs(b.ts)}?\n${b.desc}`, { confirm: "Excluir", danger: true, disclaimer: false }))) return;
+      saveHistory(loadHistory().filter(x => x.id !== b.id));
+      renderHistory();
+    }
+  });
 
   // ---------- remapeador ----------
   const { CATALOG, encodeChoice, describeEntry } = window.K652Keys;
@@ -704,6 +814,7 @@
     if (off === null) throw new Error("Esta tecla não tem camada Fn.");
     if (sameEntry(entryAt(cur, off), entry)) { setMatrix(cur); return log("Nada a gravar: a tecla já está assim."); }
     if (!(await UI.ask(`Gravar no teclado?\n${label} (modo ${MODES[modeAddr]}).`))) return log("Cancelado, nada foi gravado.");
+    autoBackup({ [matrixPart(modeAddr)]: cur }, `Antes de alterar a tecla ${label} (modo ${MODES[modeAddr]})`);
     const next = cur.slice();
     next.set(entry, off);
     await writeAndVerify(next, label, modeAddr);
@@ -876,7 +987,9 @@
     b.addEventListener("click", () => { if (sel) { sel.layer = b.dataset.layer; choice = null; renderPanel(); } }));
   $("rmSearch").addEventListener("input", renderList);
   $("rmMods").addEventListener("change", renderPreview);
+  $("bkName").addEventListener("keydown", e => { if (e.key === "Enter") actions.bkNew(); });
   setMode(modeAddr);
+  renderHistory();
 
   navigator.hid?.addEventListener?.("disconnect", e => {
     if (dev.owns(e.device)) {
