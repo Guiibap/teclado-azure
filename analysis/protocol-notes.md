@@ -262,3 +262,11 @@ Leitura (resp[7..], 254 B) = 8 globais + 2 blocos de 0x7B.
 - Fn+PgDn mexe no nibble de cor (byte A) do efeito atual: no efeito 9, 07 → 00 apagou as luzes; depois 00 → 04.
   Numeração das cores ainda incerta. O app tem 9 cores prontas + RGB livre (R/G/B 0..255), então o RGB deve ser gravado em outro comando.
 - O app original mostra 3 perfis (Profile 1/2/3), mas a leitura 83 B6 traz só 2 blocos. A hipótese "bloco 1 = Windows, bloco 2 = Mac" fica em aberto.
+
+### Teste de cores (logs_debug/k652-log-2026-10-22-02-54-35.txt)
+- No efeito Fixo, Fn+PgDn percorre o nibble de cor 7 → 0 → 1 → … → 6 → 7.
+- 7 = colorido (é o "random" do LedOpt / caixa "RGB" do app). De 0 a 6 o teclado ficou totalmente apagado.
+- Leitura: 0..6 são índices de uma paleta guardada fora do perfil, provavelmente a tabela RGB (escrita com 08 B8,
+  linhas de 0x15 = 21 bytes = 7 cores × RGB). Neste teclado essa paleta parece estar zerada (preta).
+- cfg LedOpt `hw,effect,speed,light,dir,random,color`: os efeitos 3, 6, 15, 16 e 17 não aceitam cor.
+- Próximo: ler a tabela com 88 B8 (botão "Ler tabela de cores").

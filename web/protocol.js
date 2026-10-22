@@ -241,6 +241,16 @@ class K652Device {
     return { raw, data: raw.slice(off, off + 0x400) };
   }
 
+  // Leitura genérica no mesmo molde de GetProfile/GetMatrix: [0x80|opcode][addr 00 00 00], resposta no ID 6.
+  // Usada para a tabela RGB (88 B8), cujo leitor não existe no app original (ele só escreve com 08 B8).
+  async readTable(cmd, addr) {
+    await this.sendFeature(REPORT.CMD_SHORT, new Uint8Array([cmd, addr, 0, 0, 0, 0]));
+    await sleep(20);
+    const raw = await this.getCommand(REPORT.READ_RESP);
+    if (!raw) return null;
+    return { raw, echoOk: raw[0] === cmd, data: raw.slice(SIZES.DATA_OFFSET) };
+  }
+
   // ---------- escritas (montam buffer 0x407 e usam SendCommand) ----------
 
   _writeBuf(header, data, dataOffset) {

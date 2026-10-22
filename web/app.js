@@ -180,6 +180,20 @@
       const data = await readProfileData();
       log("Perfil lido.", undefined, showProfile(data));
     }),
+    // tabela RGB (SetLedRgbTab escreve em 08 B8, linhas de 0x15 bytes = 7 cores R,G,B — hipótese)
+    ltColors: () => act(async () => {
+      const r = await dev.readTable(0x88, 0xb8);
+      if (!r) return log("Tabela de cores (88 B8): sem resposta.", "err");
+      let out = `eco 0x${hx(r.raw[0])} (${r.echoOk ? "ok" : "esperado 88"}) · ${r.raw.length} bytes\n`;
+      const used = r.data.findLastIndex(b => b !== 0) + 1;
+      for (let i = 0; i < Math.max(used, 0x15); i += 0x15) {
+        const row = [...r.data.slice(i, i + 0x15)];
+        const cores = Array.from({ length: 7 }, (_, c) => row.slice(c * 3, c * 3 + 3).map(hx).join("")).join(" ");
+        out += `linha ${String(i / 0x15).padStart(2)}  ${cores}\n`;
+      }
+      $("ltOut").textContent = out;
+      log(`Tabela de cores lida (88 B8): ${used} bytes não-zero.`, r.echoOk ? undefined : "err", out);
+    }),
     ltSnap: () => act(async () => {
       profileSnap = await readProfileData();
       log("Perfil guardado. Mude a iluminação pelo teclado, anote o que fez e clique em “Comparar”.", undefined, showProfile(profileSnap));
