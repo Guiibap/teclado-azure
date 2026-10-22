@@ -5,8 +5,8 @@ Configurador web (WebHID) para o teclado Redragon K652 RGB PRO ("Azure"), feito 
 Funciona no Chrome ou no Edge, sem instalar nada:
 
 - leitura e gravação do perfil: efeito, brilho e velocidade;
-- cores personalizadas por tecla;
-- remapeamento de teclas.
+- paleta de cores do modo Mac;
+- remapeamento de teclas (camada normal e com Fn, modos Mac e Windows).
 
 ## Como rodar
 
