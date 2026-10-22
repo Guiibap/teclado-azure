@@ -278,9 +278,11 @@ class K652Device {
     return await this.sendCommand(buf);
   }
 
-  // SetLedRgbTab (sub_445af0): [08][RgbTabAddr][00][40][00 00 00][tabela ≤ 1003]
+  // SetLedRgbTab (sub_445af0): [08][RgbTabAddr][00][40][00 00 00][área de 0x400 bytes]
+  // O app original copia a tabela (≤ 0x3eb) em +0x15 da área, deixando a linha 0 zerada; aqui recebe a área
+  // inteira, no mesmo formato em que 88 B8 a devolve (linha n = efeito n).
   async setLedRgbTab(table, addr = ADDR.RGB_TAB) {
-    if (table.length > 0x3eb) throw new Error("Tabela RGB > 1003 bytes");
+    if (table.length > 0x400) throw new Error("Tabela RGB > 0x400 bytes");
     const buf = this._writeBuf(
       new Uint8Array([CMD.SET_LED_RGB_TAB, addr, 0x00, 0x40, 0x00, 0x00, 0x00]),
       table, 7);

@@ -196,6 +196,28 @@
       $("ltOut").textContent = out;
       log(`Tabela de cores lida (88 B8): ${used} bytes não-zero.`, r.echoOk ? undefined : "err", out);
     }),
+    ltPalTest: () => act(async () => {
+      const cur = await readPalette();
+      if (!loadPalBackup()) savePalBackup(cur);
+      const next = cur.slice();
+      for (let i = PAL_MAC_FROM; i < 0x400; i++) next[i] = i % 3 === 0 ? 0xff : 0x00;
+      const changed = [...next].filter((b, i) => b !== cur[i]).length;
+      const msg = `Gravar na tabela de cores (08 B8)?\n\n` +
+        `• 0x000–0x${(PAL_MAC_FROM - 1).toString(16)} (paleta do Windows): fica igual.\n` +
+        `• 0x${PAL_MAC_FROM.toString(16)}–0x3ff: vira o padrão “ff 00 00” repetido (${changed} bytes mudam).\n\n` +
+        `Backup da tabela atual salvo neste navegador; “Restaurar paleta” desfaz.`;
+      log(`Prévia da paleta de teste: cabeçalho 08 b8 00 40 00 00 00, dados 0x${PAL_MAC_FROM.toString(16)}..: ` +
+        hex(next.slice(PAL_MAC_FROM, PAL_MAC_FROM + 24)) + " …", "note");
+      if (!confirm(msg)) return log("Cancelado, nada foi gravado.");
+      if (await writePalette(next, "paleta de teste na 2ª metade"))
+        log("Agora, no modo Mac, deixe no Fixo e aperte Fn+PgDn. Vermelho, azul ou verde? (Se continuar apagado, desconecte e conecte o USB e tente de novo.)", "note");
+    }),
+    ltPalRestore: () => act(async () => {
+      const b = loadPalBackup();
+      if (!b) return log("Não há backup da paleta neste navegador.", "err");
+      if (!confirm(`Restaurar a tabela de cores para a cópia salva em ${b.ts}?`)) return;
+      await writePalette(b.data, "restauração da paleta");
+    }),
     ltSnap: () => act(async () => {
       profileSnap = await readProfileData();
       log("Perfil guardado. Mude a iluminação pelo teclado, anote o que fez e clique em “Comparar”.", undefined, showProfile(profileSnap));
@@ -329,6 +351,38 @@
   const { parseProfile, effectName, describeOffset } = window.K652Lighting;
   let profileSnap = null;
   const hx = b => b === undefined ? "--" : b.toString(16).padStart(2, "0");
+
+  // ---------- paleta (tabela de cores 88/08 B8) ----------
+  // 0x000–0x1e2: linhas 0..22 (paleta do modo Windows, confirmada). Depois disso está zerado: suspeita de ser
+  // a paleta do modo Mac, onde as cores 0..6 saem apagadas.
+  const PAL_MAC_FROM = 0x1e3;
+  const PAL_BACKUP = "k652.paletteBackup";
+
+  async function readPalette() {
+    const r = await dev.readTable(0x88, 0xb8);
+    if (!r || !r.echoOk || r.data.length !== 0x400 || !r.data.slice(0x15, 0x2a).some(b => b))
+      throw new Error("Leitura da tabela de cores suspeita. Nada foi gravado.");
+    return r.data;
+  }
+  function loadPalBackup() {
+    try { const b = JSON.parse(localStorage.getItem(PAL_BACKUP)); return b && { ts: b.ts, data: new Uint8Array(b.data) }; }
+    catch { return null; }
+  }
+  function savePalBackup(data) {
+    try { localStorage.setItem(PAL_BACKUP, JSON.stringify({ ts: new Date().toLocaleString("pt-BR"), data: [...data] })); }
+    catch (e) { throw new Error("Não consegui salvar o backup da paleta: " + e.message); }
+    log("Backup da tabela de cores salvo neste navegador.");
+  }
+  async function writePalette(data, label) {
+    log(`Gravando: ${label} (08 B8)…`, "tx");
+    if (!(await dev.setLedRgbTab(data))) throw new Error("SetLedRgbTab falhou nas 3 tentativas.");
+    await sleep(300);
+    const back = await readPalette();
+    const bad = [...data].map((b, i) => b !== back[i] ? i : -1).filter(i => i >= 0);
+    if (bad.length) { log(`Releitura difere em ${bad.length} bytes (1º offset 0x${bad[0].toString(16)}).`, "err"); return false; }
+    log("OK: paleta gravada e conferida.");
+    return true;
+  }
 
   async function readProfileData() {
     const r = await dev.getProfile();

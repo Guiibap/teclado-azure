@@ -308,3 +308,13 @@ ffffff; os demais começam com ff0000. São 23 linhas não-zero (483 bytes).
 Então a paleta **não** está zerada, e a hipótese anterior para o teclado apagar com o nibble 0..6 cai.
 Possível explicação: o app do Windows gravou a paleta depois do teste de cores (quando o perfil branco foi aplicado).
 Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem branco, azul, verde, amarelo, magenta, ciano.
+
+### Modo Windows × Mac (2026-10-22)
+
+- Com o Fn gravado em D4, no modo Windows, Fn+PgDn no Fixo passou por colorido → branco → azul → verde →
+  amarelo → magenta → ciano → branco → colorido, exatamente a paleta lida em `88 B8` (ordem R,G,B confirmada).
+- Então a 1ª metade da tabela (0x000–0x1e2) é a paleta do **modo Windows**. No modo Mac as cores 0..6 saem apagadas.
+  Suspeita: a paleta do Mac é a 2ª metade, que está toda zerada.
+- Teste (botão “Preencher 2ª metade”): grava `ff 00 00` repetido de 0x1e3 até 0x3ff, sem mexer na 1ª metade.
+  No Mac, se a cor sair vermelha, a paleta do Mac começa num offset com resto 0 na divisão por 3; azul = resto 1;
+  verde = resto 2; apagado = a paleta do Mac não está aqui.
