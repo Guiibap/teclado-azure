@@ -347,3 +347,6 @@ Próximo teste, só leitura: repetir Fn+PgDn no Mac e ver se agora aparecem bran
   devolve 8 + 2 × 0x7B (0xFE), com `5a a5` no fim de cada bloco ([0x79..0x7a]); mandando só 0x88, o fim dos blocos
   chega zerado. Nova hipótese: a escrita tem que ter o mesmo formato da leitura (0xFE bytes).
 - App ajustado: grava os 0xFE bytes lidos, trocando só o byte desejado, e se recusa a gravar se faltar algum marcador.
+- **Confirmado 22/10 00:54:** SetProfile com os 0xFE bytes da leitura (8 globais + 2 × 0x7B) grava certo. Mudança só no
+  byte 0x9a (bloco 2, efeito 1 Fixo, `44` → `41` = brilho 1, velocidade 4): releitura idêntica ao enviado e a luz mudou.
+  Formato de escrita = formato de leitura; o formato curto de 0x88 do app v1.6.6 não serve para este firmware.
