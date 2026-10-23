@@ -74,7 +74,7 @@ input, textarea { caret-color: var(--ink); }
 .brand-sub { color: var(--mute); font-size: 12px; line-height: 1.2; white-space: nowrap; }
 .topbar-end { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
 .lang-select { width: 184px; flex: none; }
-.lang-select .ui-select-trigger > .ico:first-child { transform: none; }
+.ui-select.lang-select .ui-select-trigger > .ico:first-child { transform: none; }
 .lang-select .ui-listbox { left: auto; right: 0; min-width: 100%; }
 
 .status {
